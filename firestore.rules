@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/admin_users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Allow admins to access everything
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Admin users collection - Critical for login
+    match /admin_users/{userId} {
+      // Allow reading admin doc for verification during login
+      allow get, read: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to access these collections
+    match /reports_to_campus_security/{reportId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null;
+    }
+    
+    match /users/{userId} {
+      // Allow querying by idNumber for login purposes
+      allow list: if true;  // This allows the initial ID number query
+      
+      // For individual document access
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /users_log/{logId} {
+      // Allow authenticated users to create login logs
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Allow users to read their own logs
+      allow read: if request.auth != null && 
+                   resource.data.userId == request.auth.uid;
+    }
+    
+    // Testing purposes
+    match /alcohol_detection_data/{detectionId} {
+      allow create, write, read: if true;
+    }
+  }
+} 
