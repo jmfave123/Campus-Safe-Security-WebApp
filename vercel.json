@@ -1,0 +1,18 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "**/*.js",
+        "use": "@vercel/static-build",
+        "config": {
+          "distDir": "build/web"
+        }
+      }
+    ],
+    "build": {
+      "env": {
+        "NODE_VERSION": "16.x",
+        "FLUTTER_VERSION": "3.16.9"
+      }
+    }
+  }
