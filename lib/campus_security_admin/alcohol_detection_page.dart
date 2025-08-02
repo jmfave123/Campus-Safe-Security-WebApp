@@ -146,18 +146,18 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         const SizedBox(width: 16),
         _buildStatCard(
           'Active Detections',
-          // Use the specialized active cases stream
-          stream: _getActiveCasesStream(),
+          stream: _getFilteredDetectionsStream(countOnly: true),
           icon: Icons.warning_amber_rounded,
           color: const Color(0xFFFF9800),
+          statusFilter: statusActive,
         ),
         const SizedBox(width: 16),
         _buildStatCard(
           'Resolved Detections',
-          // Use the specialized resolved cases stream
-          stream: _getResolvedCasesStream(),
+          stream: _getFilteredDetectionsStream(countOnly: true),
           icon: Icons.check_circle_outline,
           color: const Color(0xFF0F9D58),
+          statusFilter: statusResolved,
         ),
       ],
     );
@@ -351,89 +351,108 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     required Stream<QuerySnapshot> stream,
     required IconData icon,
     required Color color,
+    String? statusFilter,
   }) {
     return Expanded(
       child: Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.15),
-              spreadRadius: 1,
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 0,
               blurRadius: 8,
-              offset: const Offset(0, 3),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                child: Icon(icon, size: 30, color: color),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+                const Spacer(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot>(
+              stream: stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Text(
+                    'Error',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(height: 8),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: stream,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return Text(
-                            'Error',
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                            ),
-                          );
-                        }
+                  );
+                }
 
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Text(
-                            'Loading...',
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                            ),
-                          );
-                        }
-
-                        final count = snapshot.data?.docs.length ?? 0;
-                        return Text(
-                          count.toString(),
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                        );
-                      },
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text(
+                    'Loading...',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                  ],
-                ),
+                  );
+                }
+
+                // Apply client-side filtering by status if needed
+                int count = 0;
+                if (snapshot.data != null) {
+                  if (statusFilter != null) {
+                    // Apply date filtering first
+                    final dateRange = _getDateRangeForFilter();
+                    final filteredDocs = _filterDetectionsByDateRange(
+                        snapshot.data!.docs, dateRange);
+
+                    // Then filter by status
+                    count = filteredDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final status = data['status'] as String? ?? statusActive;
+                      return status == statusFilter;
+                    }).length;
+                  } else {
+                    // For total count, just apply date filtering
+                    final dateRange = _getDateRangeForFilter();
+                    final filteredDocs = _filterDetectionsByDateRange(
+                        snapshot.data!.docs, dateRange);
+                    count = filteredDocs.length;
+                  }
+                }
+
+                return Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -567,13 +586,13 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                     dividerThickness: 1,
                     columns: const [
                       DataColumn(
-                          label: Text('Student Name',
+                          label: Text(' Name',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
-                          label: Text('Student ID',
+                          label: Text('ID Number',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
-                          label: Text('Course',
+                          label: Text('Department',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
                           label: Text('Detection Time',
@@ -882,7 +901,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
 
   Widget _buildStudentInfoSection(Map<String, dynamic> detection) {
     return _buildInfoCard(
-      'Student Information',
+      'User Information',
       [
         _buildDetailTile(
           icon: Icons.person,
@@ -891,12 +910,12 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         ),
         _buildDetailTile(
           icon: Icons.badge,
-          label: 'Student ID',
+          label: 'ID Number',
           value: detection['studentId'] ?? 'Unknown',
         ),
         _buildDetailTile(
           icon: Icons.school,
-          label: 'Course',
+          label: 'Department',
           value: detection['studentCourse'] ?? 'Unknown',
         ),
       ],
@@ -1520,39 +1539,6 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     } catch (e) {
       print('Error in _getFilteredDetectionsStream: $e');
       // Return an empty stream on error
-      return FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .limit(0)
-          .snapshots();
-    }
-  }
-
-  // Helper method to get active cases
-  Stream<QuerySnapshot> _getActiveCasesStream() {
-    try {
-      return FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .where('status', whereIn: [statusActive, statusPending])
-          .limit(100)
-          .snapshots();
-    } catch (e) {
-      return FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .limit(0)
-          .snapshots();
-    }
-  }
-
-  // Helper method to get resolved cases
-  Stream<QuerySnapshot> _getResolvedCasesStream() {
-    try {
-      return FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .where('status',
-              whereIn: [statusResolved, statusCompleted, statusInactive])
-          .limit(100)
-          .snapshots();
-    } catch (e) {
       return FirebaseFirestore.instance
           .collection('alcohol_detection_data')
           .limit(0)

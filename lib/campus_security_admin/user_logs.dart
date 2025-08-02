@@ -768,95 +768,86 @@ class _UserLogsPageState extends State<UserLogsPage> {
     String? value,
   }) {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
-            spreadRadius: 1,
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: StreamBuilder<QuerySnapshot?>(
-          stream: _getFilteredStreamForStatCard(collection, field, value),
-          builder: (context, snapshot) {
-            // Handle loading state
-            final isLoading =
-                snapshot.connectionState == ConnectionState.waiting;
+      child: StreamBuilder<QuerySnapshot?>(
+        stream: _getFilteredStreamForStatCard(collection, field, value),
+        builder: (context, snapshot) {
+          // Handle loading state
+          final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
-            // Get count, default to 0 if no data/error
-            int count = 0;
-            if (snapshot.hasData && snapshot.data != null) {
-              if (field != null && value != null) {
-                // For field-filtered queries, count only docs that match our field filter
-                count = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data[field] == value;
-                }).length;
-              } else {
-                // For non-filtered queries, use the total doc count
-                count = snapshot.data!.docs.length;
-              }
+          // Get count, default to 0 if no data/error
+          int count = 0;
+          if (snapshot.hasData && snapshot.data != null) {
+            if (field != null && value != null) {
+              // For field-filtered queries, count only docs that match our field filter
+              count = snapshot.data!.docs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return data[field] == value;
+              }).length;
+            } else {
+              // For non-filtered queries, use the total doc count
+              count = snapshot.data!.docs.length;
             }
+          }
 
-            // Handle error state specifically for the card display
-            final hasError = snapshot.hasError;
-
-            return Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
                   ),
-                  child: Icon(icon, size: 30, color: color),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment:
-                        MainAxisAlignment.center, // Center vertically
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (isLoading)
-                        SizedBox(
-                            height: 30,
-                            width: 30,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(color)))
-                      else
-                        Text(
-                          count.toString(),
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                        ),
-                    ],
+                  const Spacer(),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (isLoading)
+                const Text(
+                  'Loading...',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                )
+              else
+                Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-              ],
-            );
-          },
-        ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

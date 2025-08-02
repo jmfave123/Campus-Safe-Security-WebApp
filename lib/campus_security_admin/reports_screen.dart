@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../reusable_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:html' as html;
 import 'package:pdf/pdf.dart';
@@ -181,55 +182,105 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           'resolved')
                                       .length;
 
-                                  return constraints.maxWidth < 600
-                                      ? Column(
-                                          children: [
-                                            _buildStatCardDirect(
-                                              'Total Reports',
-                                              Icons.report,
-                                              const Color(0xFF4285F4),
+                                  if (constraints.maxWidth < 600) {
+                                    return Column(
+                                      children: [
+                                        buildStatCardAlerts(
+                                           'Total Reports',
+                                          Text(
+                                            totalReports.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Icons.report,
+                                          const Color(0xFF4285F4),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        buildStatCardAlerts(
+                                          'Pending Reports',
+                                          Text(
+                                            pendingReports.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Icons.pending_actions,
+                                          const Color(0xFFFF9800),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        buildStatCardAlerts(
+                                          'Resolved Reports',
+                                          Text(
+                                            resolvedReports.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Icons.task_alt,
+                                          const Color(0xFF0F9D58),
+                                        ),
+                                      ],
+                                    );
+                                  } else {
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: buildStatCardAlerts(
+                                            'Total Reports',
+                                            Text(
                                               totalReports.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
                                             ),
-                                            const SizedBox(height: 16),
-                                            _buildStatCardDirect(
-                                              'Pending Reports',
-                                              Icons.pending_actions,
-                                              const Color(0xFFFF9800),
+                                            Icons.report,
+                                            const Color(0xFF4285F4),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: buildStatCardAlerts(
+                                            'Pending Reports',
+                                            Text(
                                               pendingReports.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
                                             ),
-                                            const SizedBox(height: 16),
-                                            _buildStatCardDirect(
-                                              'Resolved Reports',
-                                              Icons.task_alt,
-                                              const Color(0xFF0F9D58),
+                                            Icons.pending_actions,
+                                            const Color(0xFFFF9800),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: buildStatCardAlerts(
+                                            'Resolved Reports',
+                                            Text(
                                               resolvedReports.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
                                             ),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            _buildStatCardDirect(
-                                              'Total Reports',
-                                              Icons.report,
-                                              const Color(0xFF4285F4),
-                                              totalReports.toString(),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            _buildStatCardDirect(
-                                              'Pending Reports',
-                                              Icons.pending_actions,
-                                              const Color(0xFFFF9800),
-                                              pendingReports.toString(),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            _buildStatCardDirect(
-                                              'Resolved Reports',
-                                              Icons.task_alt,
-                                              const Color(0xFF0F9D58),
-                                              resolvedReports.toString(),
-                                            ),
-                                          ],
-                                        );
+                                            Icons.task_alt,
+                                            const Color(0xFF0F9D58),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
                                 },
                               ),
 
@@ -424,66 +475,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildStatusFilterButton() {
     return Container();
-  }
-
-  Widget _buildStatCardDirect(
-      String title, IconData icon, Color color, String count) {
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.15),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, size: 30, color: color),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      count,
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildReportsTableDirect(List<QueryDocumentSnapshot> reports) {

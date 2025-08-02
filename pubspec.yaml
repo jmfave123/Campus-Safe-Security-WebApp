@@ -50,6 +50,9 @@ dependencies:
   generative_ai_dart: ^0.1.2
   flutter_dotenv: ^5.2.1
   shared_preferences: ^2.5.3
+  universal_html: ^2.2.4
+  excel: ^4.0.6
+  pull_to_refresh: ^2.0.0
 
 
 dev_dependencies:

@@ -1,9 +1,10 @@
 // ignore_for_file: avoid_print, unused_element, invalid_use_of_protected_member, unused_local_variable, avoid_types_as_parameter_names, unnecessary_brace_in_string_interps
 
+import 'package:campus_safe_app_admin_capstone/audit_logs/audit_ui.dart';
 import 'package:campus_safe_app_admin_capstone/campus_security_admin/admin_dashboard.dart';
-import 'package:campus_safe_app_admin_capstone/services/notify_services.dart';
 import 'package:flutter/material.dart';
 import '../reusable_widget.dart';
+import '../services/audit_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'alcohol_detection_page.dart';
@@ -37,6 +38,7 @@ class _HomePageState extends State<HomePage> {
     const UserLogsPage(),
     const ReportsScreen(),
     const GeminiChatPage(),
+    const AuditUi(),
     const SettingsPage(),
     // const LogoutPage(),
   ];
@@ -467,6 +469,13 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Public method to allow other widgets to change the tab
+  void navigateToTab(int tabIndex) {
+    setState(() {
+      _selectedIndex = tabIndex;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final GlobalKey notificationKey = GlobalKey();
@@ -622,30 +631,52 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       children: [
                         buildNavItem(0, 'Dashboard', Icons.dashboard_outlined,
-                            isSelected: _selectedIndex == 0,
-                            onTap: () => setState(() => _selectedIndex = 0)),
-                        buildNavItem(1, 'Alcohol Detection', Icons.local_bar,
-                            isSelected: _selectedIndex == 1,
-                            onTap: () => setState(() => _selectedIndex = 1)),
-                        buildNavItem(2, 'Throw Alerts', Icons.warning_outlined,
-                            isSelected: _selectedIndex == 2,
-                            onTap: () => setState(() => _selectedIndex = 2)),
-                        buildNavItem(3, 'Search Account', Icons.search_outlined,
-                            isSelected: _selectedIndex == 3,
-                            onTap: () => setState(() => _selectedIndex = 3)),
-                        buildNavItem(4, 'User Logs', Icons.history_outlined,
-                            isSelected: _selectedIndex == 4,
-                            onTap: () => setState(() => _selectedIndex = 4)),
-                        buildNavItem(5, 'Reports', Icons.assessment_outlined,
+                            isSelected: _selectedIndex == 0, onTap: () {
+                          setState(() => _selectedIndex = 0);
+                          AuditWrapper.instance.logPageAccess(0);
+                        }),
+                        buildNavItem(
+                            1, 'Alcohol Detection', Icons.local_drink_outlined,
+                            isSelected: _selectedIndex == 1, onTap: () {
+                          setState(() => _selectedIndex = 1);
+                          AuditWrapper.instance.logPageAccess(1);
+                        }),
+                        buildNavItem(2, 'Alerts and Announcements',
+                            Icons.warning_outlined,
+                            isSelected: _selectedIndex == 2, onTap: () {
+                          setState(() => _selectedIndex = 2);
+                          AuditWrapper.instance.logPageAccess(2);
+                        }),
+                        buildNavItem(3, 'Users', Icons.people_outlined,
+                            isSelected: _selectedIndex == 3, onTap: () {
+                          setState(() => _selectedIndex = 3);
+                          AuditWrapper.instance.logPageAccess(3);
+                        }),
+                        buildNavItem(4, 'User Logs', Icons.people_outlined,
+                            isSelected: _selectedIndex == 4, onTap: () {
+                          setState(() => _selectedIndex = 4);
+                          AuditWrapper.instance.logPageAccess(4);
+                        }),
+                        buildNavItem(5, 'Reports', Icons.description_outlined,
                             isSelected: _selectedIndex == 5, onTap: () {
                           setState(() => _selectedIndex = 5);
+                          AuditWrapper.instance.logPageAccess(5);
                         }),
                         buildNavItem(6, 'Chat', Icons.chat_outlined,
-                            isSelected: _selectedIndex == 6,
-                            onTap: () => setState(() => _selectedIndex = 6)),
-                        buildNavItem(7, 'Settings', Icons.settings_outlined,
-                            isSelected: _selectedIndex == 7,
-                            onTap: () => setState(() => _selectedIndex = 7)),
+                            isSelected: _selectedIndex == 6, onTap: () {
+                          setState(() => _selectedIndex = 6);
+                          AuditWrapper.instance.logPageAccess(6);
+                        }),
+                        buildNavItem(7, 'Audit Logs', Icons.history_outlined,
+                            isSelected: _selectedIndex == 7, onTap: () {
+                          setState(() => _selectedIndex = 7);
+                          AuditWrapper.instance.logPageAccess(7);
+                        }),
+                        buildNavItem(8, 'Settings', Icons.settings_outlined,
+                            isSelected: _selectedIndex == 8, onTap: () {
+                          setState(() => _selectedIndex = 8);
+                          AuditWrapper.instance.logPageAccess(8);
+                        }),
                       ],
                     ),
                   ),

@@ -123,7 +123,7 @@ class NotifServices {
       }
     } catch (e) {
       print('Error sending OneSignal notification to specific user: $e');
-      throw e;
+      rethrow;
     }
   }
 }

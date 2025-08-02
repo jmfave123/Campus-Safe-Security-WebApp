@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, unnecessary_import, unused_local_variable, use_build_context_synchronously, unused_element, deprecated_member_use
 
+import 'package:campus_safe_app_admin_capstone/reusable_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -329,19 +330,19 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                _receiptInfoRow(
+                receiptInfoRow(
                   Icons.message,
                   'Message',
                   alertData['message'],
                 ),
                 const SizedBox(height: 12),
-                _receiptInfoRow(
+                receiptInfoRow(
                   Icons.people,
                   'Recipients',
                   alertData['targetDisplay'],
                 ),
                 const SizedBox(height: 12),
-                _receiptInfoRow(
+                receiptInfoRow(
                   Icons.access_time,
                   'Time',
                   DateFormat('MMM d, y HH:mm').format(DateTime.now()),
@@ -365,38 +366,6 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _receiptInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: Colors.blueGrey),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -481,72 +450,68 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     return constraints.maxWidth < 600
                         ? Column(
                             children: [
-                              _buildStatCard(
-                                'Total Alerts',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('alerts_data')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color.fromARGB(255, 227, 26, 32),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.notifications_active,
-                                const Color(0xFF4285F4),
-                              ),
+                              buildStatCardAlerts(
+  'Total Alerts',
+  StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('alerts_data')
+        .snapshots(),
+    builder: (context, snapshot) {
+      return Text(
+        snapshot.hasData ? '${snapshot.data?.docs.length ?? 0}' : 'Loading...',
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      );
+    },
+  ),
+  Icons.notifications_active,
+  const Color(0xFF4285F4),
+),
                               const SizedBox(height: 16),
-                              _buildStatCard(
-                                'Active Alerts',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('alerts_data')
-                                      .where('status', isEqualTo: 'active')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFFF9800),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.warning_rounded,
-                                const Color(0xFFFF9800),
-                              ),
+                              buildStatCardAlerts(
+  'Active Alerts',
+  StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('alerts_data')
+        .where('status', isEqualTo: 'active')
+        .snapshots(),
+    builder: (context, snapshot) {
+      return Text(
+        snapshot.hasData ? '${snapshot.data?.docs.length ?? 0}' : 'Loading...',
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      );
+    },
+  ),
+  Icons.warning_rounded,
+  const Color(0xFFFF9800),
+),
                               const SizedBox(height: 16),
-                              _buildStatCard(
-                                'Alert Channels',
-                                const Text(
-                                  'Mobile App',
-                                  style: TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F9D58),
-                                  ),
-                                ),
-                                Icons.phone_android,
-                                const Color(0xFF0F9D58),
-                              ),
+                              buildStatCardAlerts(
+  'Alert Channels',
+  const Text(
+    'Mobile App',
+    style: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      color: Colors.black87,
+    ),
+  ),
+  Icons.phone_android,
+  const Color(0xFF0F9D58),
+),
                             ],
                           )
                         : Row(
                             children: [
                               Expanded(
-                                child: _buildStatCard(
+                                child: buildStatCardAlerts(
                                   'Total Alerts',
                                   StreamBuilder<QuerySnapshot>(
                                     stream: FirebaseFirestore.instance
@@ -572,7 +537,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: _buildStatCard(
+                                child: buildStatCardAlerts(
                                   'Active Alerts',
                                   StreamBuilder<QuerySnapshot>(
                                     stream: FirebaseFirestore.instance
@@ -598,7 +563,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: _buildStatCard(
+                                child: buildStatCardAlerts(
                                   'Alert Channels',
                                   const Text(
                                     'Mobile App',
@@ -1045,57 +1010,6 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
             const Icon(Icons.check, size: 16, color: Colors.blue),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      String title, Widget valueWidget, IconData icon, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.15),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, size: 30, color: color),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  valueWidget,
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

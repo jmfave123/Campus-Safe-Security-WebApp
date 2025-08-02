@@ -328,9 +328,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                           ? '${snapshot.data?.docs.length ?? 0}'
                                           : 'Loading...',
                                       style: const TextStyle(
-                                        fontSize: 30,
+                                        fontSize: 24,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF4285F4),
+                                        color: Colors.black87,
                                       ),
                                     );
                                   },
@@ -352,9 +352,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                           ? '${snapshot.data?.docs.length ?? 0}'
                                           : 'Loading...',
                                       style: const TextStyle(
-                                        fontSize: 30,
+                                        fontSize: 24,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFFFF9800),
+                                        color: Colors.black87,
                                       ),
                                     );
                                   },
@@ -377,9 +377,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                           ? '${snapshot.data?.docs.length ?? 0}'
                                           : 'Loading...',
                                       style: const TextStyle(
-                                        fontSize: 30,
+                                        fontSize: 24,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF0F9D58),
+                                        color: Colors.black87,
                                       ),
                                     );
                                   },
@@ -404,9 +404,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                             ? '${snapshot.data?.docs.length ?? 0}'
                                             : 'Loading...',
                                         style: const TextStyle(
-                                          fontSize: 30,
+                                          fontSize: 24,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF4285F4),
+                                          color: Colors.black87,
                                         ),
                                       );
                                     },
@@ -430,9 +430,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                             ? '${snapshot.data?.docs.length ?? 0}'
                                             : 'Loading...',
                                         style: const TextStyle(
-                                          fontSize: 30,
+                                          fontSize: 24,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFFFF9800),
+                                          color: Colors.black87,
                                         ),
                                       );
                                     },
@@ -457,9 +457,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                             ? '${snapshot.data?.docs.length ?? 0}'
                                             : 'Loading...',
                                         style: const TextStyle(
-                                          fontSize: 30,
+                                          fontSize: 24,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0F9D58),
+                                          color: Colors.black87,
                                         ),
                                       );
                                     },
@@ -1085,50 +1085,46 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
   Widget _buildStatCard(
       String title, Widget valueWidget, IconData icon, Color color) {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
-            spreadRadius: 1,
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
               ),
-              child: Icon(icon, size: 30, color: color),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          valueWidget,
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  valueWidget,
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

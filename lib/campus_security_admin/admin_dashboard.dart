@@ -3,6 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../services/campus_status_service.dart';
+import '../services/backup_service.dart';
+import '../utils/errors_utils.dart';
+import '../widgets/skeleton_loader.dart';
+
 import '../reusable_widget.dart';
 import 'home_page.dart'; // Import to access _HomePageState
 
@@ -21,18 +25,57 @@ class StatusProperties {
 /// 2. Separation of concerns: UI, data fetching, and state management are separated
 /// 3. Clear naming conventions: Methods and variables are named descriptively
 /// 4. DRY (Don't Repeat Yourself): Common UI elements are extracted into reusable methods
-class AdminDashboard extends StatelessWidget {
-  final CampusStatusService _campusStatusService = CampusStatusService();
+class AdminDashboard extends StatefulWidget {
+  const AdminDashboard({super.key});
 
-  AdminDashboard({super.key});
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  final CampusStatusService _campusStatusService = CampusStatusService();
+  bool _isRefreshing = false;
+
+  Future<void> _onRefresh() async {
+    if (_isRefreshing) return;
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      // Force refresh all streams by triggering a rebuild
+      setState(() {});
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dashboard refreshed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showErrorSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: SingleChildScrollView(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,32 +97,106 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  /// Builds the dashboard header with icon and title
+  /// Builds the dashboard header with icon, title, refresh, and backup buttons
   Widget _buildDashboardHeader() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.dashboard,
-            color: Colors.blue,
-            size: 26,
-          ),
-        ),
-        const SizedBox(width: 14),
-        const Text(
-          'Dashboard Overview',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey,
-          ),
-        ),
-      ],
+    return Builder(
+      builder: (BuildContext context) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left side: Icon and Title
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.dashboard,
+                    color: Colors.blue,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Text(
+                  'Dashboard Overview',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ],
+            ),
+
+            // Right side: Action Buttons
+            Row(
+              children: [
+                // Refresh Button
+                Tooltip(
+                  message: 'Refresh Dashboard',
+                  child: IconButton(
+                    icon: _isRefreshing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh, size: 24),
+                    onPressed: _onRefresh,
+                    style: IconButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Backup Button
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final format = await showFormatSelectionDialog(context);
+                      if (format != null) {
+                        final backupService = BackupService();
+                        final result = await backupService.createBackup(format);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Backup successful: $result'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ErrorUtils.showErrorSnackBar(context, e);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.backup, size: 20),
+                  label: const Text('Backup Data'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -89,29 +206,36 @@ class AdminDashboard extends StatelessWidget {
       stream: FirebaseDatabase.instance.ref('campus_status').onValue,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SkeletonCampusStatusCard();
+        }
+
+        if (snapshot.hasError) {
+          if (context.mounted) {
+            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+          }
           return _buildCampusStatusCard(
-            status: 'Loading...',
-            color: Colors.grey,
-            icon: Icons.hourglass_empty,
-            reason: 'Fetching current status',
-            lastUpdated: 'Just now',
-            onStatusChange: (newStatus, reason) {},
-            isAdmin: false,
+            status: 'Error',
+            color: Colors.red,
+            icon: Icons.error_outline,
+            reason: 'Failed to load status',
+            lastUpdated: 'Now',
+            onStatusChange: (newStatus, reason, ctx) {
+              _updateCampusStatus(newStatus, reason, ctx);
+            },
+            isAdmin: user != null,
             context: context,
           );
         }
 
-        if (snapshot.hasError ||
-            !snapshot.hasData ||
-            snapshot.data?.snapshot.value == null) {
+        if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
           return _buildCampusStatusCard(
             status: 'Safe',
             color: Colors.green,
             icon: Icons.check_circle,
             reason: 'Default status',
             lastUpdated: 'Now',
-            onStatusChange: (newStatus, reason) {
-              _updateCampusStatus(newStatus, reason);
+            onStatusChange: (newStatus, reason, ctx) {
+              _updateCampusStatus(newStatus, reason, ctx);
             },
             isAdmin: user != null,
             context: context,
@@ -139,8 +263,8 @@ class AdminDashboard extends StatelessWidget {
           icon: statusProperties.icon,
           reason: reason,
           lastUpdated: 'Updated: $lastUpdated',
-          onStatusChange: (newStatus, reason) {
-            _updateCampusStatus(newStatus, reason);
+          onStatusChange: (newStatus, reason, ctx) {
+            _updateCampusStatus(newStatus, reason, ctx);
           },
           isAdmin: user != null,
           context: context,
@@ -151,17 +275,24 @@ class AdminDashboard extends StatelessWidget {
 
   /// Builds the statistics cards section showing counts of reports, alerts, and detections
   Widget _buildStatisticsSection(User? user) {
+    if (user == null) {
+      // Show skeleton loaders when user is not logged in yet
+      return Row(
+        children: List.generate(4, (index) => 
+          Expanded(child: 
+            Padding(
+              padding: EdgeInsets.only(right: index < 3 ? 16 : 0),
+              child: const SkeletonStatCard(),
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Row(
       children: [
         // Active Reports Card
-        user != null
-            ? _buildActiveReportsCard()
-            : _buildStatCard(
-                'Active Incidents',
-                'Loading...',
-                Icons.warning_rounded,
-                const Color(0xFFFF9800),
-              ),
+        _buildActiveReportsCard(),
         const SizedBox(width: 16),
         // Alerts Card
         _buildAlertsCard(),
@@ -169,6 +300,8 @@ class AdminDashboard extends StatelessWidget {
         // Alcohol Detections Card
         _buildAlcoholDetectionsCard(),
         const SizedBox(width: 16),
+        // Users Card
+        _buildUserCards(),
       ],
     );
   }
@@ -181,10 +314,13 @@ class AdminDashboard extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          if (context.mounted) {
+            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+          }
           return _buildStatCard(
             'Active Incidents',
-            'Error: ${snapshot.error.toString().substring(0, 20)}...',
-            Icons.warning_rounded,
+            'Error',
+            Icons.error_outline,
             const Color(0xFFEA4335),
           );
         }
@@ -193,7 +329,7 @@ class AdminDashboard extends StatelessWidget {
           return _buildStatCard(
             'Active Incidents',
             'Loading...',
-            Icons.assessment_rounded,
+            Icons.hourglass_empty,
             const Color(0xFFFF9800),
           );
         }
@@ -225,21 +361,24 @@ class AdminDashboard extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('alerts_data').snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          if (context.mounted) {
+            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+          }
+          return _buildStatCard(
+            'Alerts',
+            'Error',
+            Icons.error_outline,
+            const Color(0xFFEA4335),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildStatCard(
             'Alerts',
             'Loading...',
-            Icons.warning_rounded,
+            Icons.hourglass_empty,
             const Color.fromARGB(255, 227, 26, 32),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return _buildStatCard(
-            'Alerts',
-            'Error',
-            Icons.assessment_rounded,
-            const Color(0xFF0F9D58),
           );
         }
 
@@ -261,20 +400,23 @@ class AdminDashboard extends StatelessWidget {
           .collection('alcohol_detection_data')
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          if (context.mounted) {
+            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+          }
+          return _buildStatCard(
+            'Alcohol Detections',
+            'Error',
+            Icons.error_outline,
+            const Color(0xFFEA4335),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildStatCard(
             'Alcohol Detections',
             'Loading...',
-            Icons.assessment_rounded,
-            const Color(0xFF0F9D58),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return _buildStatCard(
-            'Alcohol Detections',
-            'Error',
-            Icons.assessment_rounded,
+            Icons.hourglass_empty,
             const Color(0xFF0F9D58),
           );
         }
@@ -294,13 +436,25 @@ class AdminDashboard extends StatelessWidget {
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          if (context.mounted) {
+            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+          }
+          return _buildStatCard(
+            'Users',
+            'Error',
+            Icons.error_outline,
+            const Color(0xFFEA4335),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildStatCard(
-              'Users', 'Loading...', Icons.verified_user, Colors.blueAccent);
-        }
-        if (snapshot.hasError) {
-          return _buildStatCard(
-              'Users', 'Error', Icons.verified_user, Colors.blueAccent);
+            'Users',
+            'Loading...',
+            Icons.hourglass_empty,
+            Colors.blueAccent,
+          );
         }
         final count = snapshot.data?.docs.length ?? 0;
         return _buildStatCard(
@@ -315,113 +469,144 @@ class AdminDashboard extends StatelessWidget {
 
   /// Builds the reports analysis section with chart
   Widget _buildReportsAnalysisSection(BuildContext context) {
-    return Container(
-      height: 500,
-      decoration: boxDecoration2(
-          Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
-      child: buildReportsAnalysisWidget(
-        context: context,
-        title: 'Reports Analysis',
-        icon: Icons.bar_chart,
-        buttonText: 'See All Reports',
-        routeName: '/reports',
-        collectionName: 'reports_to_campus_security',
-        orderByField: 'timestamp',
-        buildChartFunction: (documents) => buildMonthlyReportChart(
-          documents,
-          timestampField: 'timestamp',
-          chartTitle: 'Monthly Report Trends',
-          yAxisTitle: 'Number of Reports',
-          chartColor: Colors.blue,
-          insightTitle: 'Report Analytics Insights',
-          itemLabel: 'report',
-        ),
-        onButtonPressed: () => _navigateToTab(context, 5), // Reports tab
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('reports_to_campus_security')
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SkeletonChartSection();
+        }
+        
+        return Container(
+          height: 500,
+          decoration: boxDecoration2(
+              Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
+          child: buildReportsAnalysisWidget(
+            context: context,
+            title: 'Reports Analysis',
+            icon: Icons.bar_chart,
+            buttonText: 'See All Reports',
+            routeName: '/reports',
+            collectionName: 'reports_to_campus_security',
+            orderByField: 'timestamp',
+            buildChartFunction: (documents) => buildMonthlyReportChart(
+              documents,
+              timestampField: 'timestamp',
+              chartTitle: 'Monthly Report Trends',
+              yAxisTitle: 'Number of Reports',
+              chartColor: Colors.blue,
+              insightTitle: 'Report Analytics Insights',
+              itemLabel: 'report',
+            ),
+            onButtonPressed: () => _navigateToTab(context, 5), // Reports tab
+          ),
+        );
+      },
     );
   }
 
   /// Builds the alcohol detection analysis section with chart
   Widget _buildAlcoholDetectionSection(BuildContext context) {
-    return Container(
-      height: 500,
-      decoration: boxDecoration2(
-          Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
-      child: buildReportsAnalysisWidget(
-        context: context,
-        title: 'Alcohol Detection Analysis',
-        icon: Icons.local_bar,
-        buttonText: 'See All Detections',
-        routeName: '/reports',
-        collectionName: 'alcohol_detection_data',
-        orderByField: 'timestamp',
-        descending: true,
-        buildChartFunction: (documents) {
-          // Find the most appropriate timestamp field
-          final timestampField = _determineTimestampField(documents);
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('alcohol_detection_data')
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SkeletonChartSection();
+        }
+        
+        return Container(
+          height: 500,
+          decoration: boxDecoration2(
+              Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
+          child: buildReportsAnalysisWidget(
+            context: context,
+            title: 'Alcohol Detection Analysis',
+            icon: Icons.local_bar,
+            buttonText: 'See All Detections',
+            routeName: '/reports',
+            collectionName: 'alcohol_detection_data',
+            orderByField: 'timestamp',
+            descending: true,
+            buildChartFunction: (documents) {
+              // Find the most appropriate timestamp field
+              final timestampField = _determineTimestampField(documents);
 
-          return buildMonthlyReportChart(
-            documents,
-            timestampField: timestampField,
-            chartTitle: 'Monthly Alcohol Detection Trends',
-            yAxisTitle: 'Number of Detections',
-            chartColor: Colors.green,
-            insightTitle: 'Alcohol Detection Insights',
-            itemLabel: 'detection',
-            includeAllMonths: true,
-          );
-        },
-        onButtonPressed: () =>
-            _navigateToTab(context, 1), // Alcohol Detection tab
-      ),
+              return buildMonthlyReportChart(
+                documents,
+                timestampField: timestampField,
+                chartTitle: 'Monthly Alcohol Detection Trends',
+                yAxisTitle: 'Number of Detections',
+                chartColor: Colors.green,
+                insightTitle: 'Alcohol Detection Insights',
+                itemLabel: 'detection',
+                includeAllMonths: true,
+              );
+            },
+            onButtonPressed: () =>
+                _navigateToTab(context, 1), // Alcohol Detection tab
+          ),
+        );
+      },
     );
   }
 
   /// Builds the alerts analysis section with chart
   Widget _buildAlertsAnalysisSection(BuildContext context) {
-    return Container(
-      height: 500,
-      decoration: boxDecoration2(
-          Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
-      child: buildReportsAnalysisWidget(
-        context: context,
-        title: 'Alerts Analysis',
-        icon: Icons.warning_outlined,
-        buttonText: 'See All Alerts',
-        routeName: '/reports',
-        collectionName: 'alerts_data',
-        orderByField: 'timestamp',
-        descending: true,
-        buildChartFunction: (documents) {
-          return buildMonthlyReportChart(
-            documents,
-            timestampField: 'timestamp',
-            chartTitle: 'Monthly Alert Trends',
-            yAxisTitle: 'Number of Alerts',
-            chartColor: Colors.red,
-            insightTitle: 'Alert Pattern Insights',
-            itemLabel: 'alert',
-            includeAllMonths: true,
-            countUniqueIds: true,
-          );
-        },
-        onButtonPressed: () => _navigateToTab(context, 2), // Throw Alerts tab
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('alerts_data')
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SkeletonChartSection();
+        }
+        
+        return Container(
+          height: 500,
+          decoration: boxDecoration2(
+              Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
+          child: buildReportsAnalysisWidget(
+            context: context,
+            title: 'Alerts Analysis',
+            icon: Icons.warning_outlined,
+            buttonText: 'See All Alerts',
+            routeName: '/reports',
+            collectionName: 'alerts_data',
+            orderByField: 'timestamp',
+            descending: true,
+            buildChartFunction: (documents) {
+              return buildMonthlyReportChart(
+                documents,
+                timestampField: 'timestamp',
+                chartTitle: 'Monthly Alert Trends',
+                yAxisTitle: 'Number of Alerts',
+                chartColor: Colors.red,
+                insightTitle: 'Alert Pattern Insights',
+                itemLabel: 'alert',
+                includeAllMonths: true,
+                countUniqueIds: true,
+              );
+            },
+            onButtonPressed: () => _navigateToTab(context, 2), // Throw Alerts tab
+          ),
+        );
+      },
     );
   }
 
   /// Helper method to navigate to a specific tab in the HomePage
   void _navigateToTab(BuildContext context, int tabIndex) {
-    // Use dynamic type to avoid direct dependency on _HomePageState
     final homePageState = context.findAncestorStateOfType<State<HomePage>>();
     if (homePageState != null) {
-      // Use reflection to access the _selectedIndex property
       try {
-        // This is a safer approach than direct casting
-        homePageState.setState(() {
-          // Use reflection or dynamic to set the property
-          (homePageState as dynamic)._selectedIndex = tabIndex;
-        });
+        // Use dynamic to call the public method `navigateToTab`
+        (homePageState as dynamic).navigateToTab(tabIndex);
       } catch (e) {
         print('Error navigating to tab: $e');
       }
@@ -510,7 +695,7 @@ class AdminDashboard extends StatelessWidget {
     required IconData icon,
     required String reason,
     required String lastUpdated,
-    required Function(String, String) onStatusChange,
+    required Function(String, String, BuildContext) onStatusChange,
     required bool isAdmin,
     required BuildContext context,
   }) {
@@ -622,7 +807,7 @@ class AdminDashboard extends StatelessWidget {
   /// Builds the status dropdown control for admins to update campus status
   Widget _buildStatusDropdown({
     required String currentStatus,
-    required Function(String, String) onStatusChange,
+    required Function(String, String, BuildContext) onStatusChange,
     required BuildContext context,
   }) {
     final TextEditingController reasonController = TextEditingController();
@@ -700,11 +885,11 @@ class AdminDashboard extends StatelessWidget {
   void _handleStatusUpdate(
       String selectedStatus,
       TextEditingController reasonController,
-      Function(String, String) onStatusChange,
+      Function(String, String, BuildContext) onStatusChange,
       BuildContext context) {
     final reason = reasonController.text.trim();
     if (reason.isNotEmpty) {
-      onStatusChange(selectedStatus, reason);
+      onStatusChange(selectedStatus, reason, context);
       reasonController.clear();
     } else {
       // Show error
@@ -765,12 +950,12 @@ class AdminDashboard extends StatelessWidget {
   }
 
   /// Updates the campus status in Firebase Realtime Database
-  Future<void> _updateCampusStatus(String status, String reason) async {
+  Future<void> _updateCampusStatus(
+      String status, String reason, BuildContext context) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print('Cannot update status: User not authenticated');
-        return;
+        throw Exception('User not authenticated');
       }
 
       final statusData = {
@@ -797,68 +982,73 @@ class AdminDashboard extends StatelessWidget {
       // Send notification to all users about the status change
       await _campusStatusService.sendStatusChangeNotification(status, reason);
 
-      print('Campus status updated successfully to: $status');
+      // Show success message if the context is still mounted
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Campus status updated to: $status'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      print('Error updating campus status: $e');
+      if (context.mounted) {
+        ErrorUtils.showErrorSnackBar(context, e);
+      }
+      // Re-throw the error to be handled by the caller if needed
+      rethrow;
     }
   }
 
-  /// Builds a statistics card with icon and value
+  /// Builds a statistics card with icon and value using modern design
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.15),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+        padding: const EdgeInsets.all(20),
+        decoration: boxDecoration2(
+          Colors.white,
+          12,
+          Colors.grey,
+          0.1,
+          0,
+          8,
+          const Offset(0, 2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const Spacer(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
           ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, size: 30, color: color),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

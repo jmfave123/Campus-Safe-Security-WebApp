@@ -1,16 +1,17 @@
 // campus_status_widgets.dart
 import 'package:flutter/material.dart';
 import '../models/campus_status_model.dart';
+import '../services/audit_wrapper.dart';
 
 class CampusStatusIndicator extends StatelessWidget {
   final CampusStatus status;
   final double size;
 
   const CampusStatusIndicator({
-    Key? key,
+    super.key,
     required this.status,
     this.size = 1.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +75,10 @@ class CampusStatusControl extends StatefulWidget {
   final Function(CampusStatusLevel, String) onStatusUpdate;
 
   const CampusStatusControl({
-    Key? key,
+    super.key,
     required this.currentStatus,
     required this.onStatusUpdate,
-  }) : super(key: key);
+  });
 
   @override
   _CampusStatusControlState createState() => _CampusStatusControlState();
@@ -178,6 +179,13 @@ class _CampusStatusControlState extends State<CampusStatusControl> {
           ElevatedButton(
             onPressed: () {
               if (_reasonController.text.trim().isNotEmpty) {
+                // Log the status update
+                AuditWrapper.instance.logStatusUpdate(
+                  newStatus: _selectedLevel.name,
+                  reason: _reasonController.text.trim(),
+                  previousStatus: widget.currentStatus.level.name,
+                );
+                
                 widget.onStatusUpdate(
                     _selectedLevel, _reasonController.text.trim());
               } else {

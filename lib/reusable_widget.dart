@@ -2,6 +2,7 @@
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:campus_safe_app_admin_capstone/services/backup_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -111,12 +112,12 @@ Widget profileMenuWidget({
 Widget buildNavItem(int index, String title, IconData icon,
     {required bool isSelected, required Function() onTap}) {
   return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -129,7 +130,7 @@ Widget buildNavItem(int index, String title, IconData icon,
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: isSelected
                     ? Colors.blue.withOpacity(0.2)
@@ -138,16 +139,21 @@ Widget buildNavItem(int index, String title, IconData icon,
               ),
               child: Icon(
                 icon,
-                size: 20,
+                size: 18,
                 color: isSelected ? Colors.blue : Colors.grey[700],
               ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(
-                color: isSelected ? Colors.blue : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isSelected ? Colors.blue : Colors.grey[700],
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -486,85 +492,88 @@ Widget buildSuccessDialog({
   }
 
   Future.delayed(Duration(milliseconds: delayMilliseconds), () {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: gradientColors!,
-              ),
+    // Check if the context is still mounted before showing the dialog
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.shade200.withOpacity(0.5),
-                  spreadRadius: 5,
-                  blurRadius: 7,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 60,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradientColors!,
                 ),
-                const SizedBox(height: 15),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.shade200.withOpacity(0.5),
+                    spreadRadius: 5,
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
                     color: Colors.white,
+                    size: 60,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: onButtonPressed,
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 10),
-                  ),
-                  child: Text(
-                    buttonText,
-                    style: TextStyle(
-                      color: gradientColors!.last,
+                  const SizedBox(height: 15),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: onButtonPressed,
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 10),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: TextStyle(
+                        color: gradientColors.last,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    }
   });
 
   // Return an empty container since the actual dialog is shown via showDialog
@@ -1584,5 +1593,182 @@ Widget buildMonthlyReportChart(
         ),
       ),
     ],
+  );
+}
+
+//reusable widget for throw_alerts.dart file
+
+Widget buildStatCardAlerts(
+    String title, Widget valueWidget, IconData icon, Color color) {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 12),
+        valueWidget,
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget receiptInfoRow(IconData icon, String label, String value) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 18, color: Colors.blueGrey),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+/// Shows a format selection dialog for backup
+Future<BackupFormat?> showFormatSelectionDialog(BuildContext context) async {
+  return await showDialog<BackupFormat>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      backgroundColor: Colors.white,
+      elevation: 8.0,
+      title: Row(
+        children: [
+          Icon(Icons.backup_table_rounded, color: Colors.blue.shade700),
+          const SizedBox(width: 12),
+          const Text(
+            'Select Backup Format',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Choose the format for your data backup. Each format has its own advantages.',
+            style: TextStyle(fontSize: 14, color: Colors.black54),
+          ),
+          const SizedBox(height: 20),
+          buildFormatOption(
+            context,
+            icon: Icons.code,
+            title: 'JSON',
+            subtitle: 'Technical format for developers.',
+            format: BackupFormat.json,
+            color: Colors.orange,
+          ),
+          buildFormatOption(
+            context,
+            icon: Icons.table_chart,
+            title: 'CSV',
+            subtitle: 'Spreadsheet format (multiple files).',
+            format: BackupFormat.csv,
+            color: Colors.green,
+          ),
+          buildFormatOption(
+            context,
+            icon: Icons.description,
+            title: 'Excel',
+            subtitle: 'Excel workbook (single file).',
+            format: BackupFormat.excel,
+            color: Colors.blue,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget buildFormatOption(
+  BuildContext context, {
+  required IconData icon,
+  required String title,
+  required String subtitle,
+  required BackupFormat format,
+  required Color color,
+}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: ListTile(
+      leading: CircleAvatar(
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      onTap: () => Navigator.of(context).pop(format),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      hoverColor: color.withOpacity(0.05),
+    ),
   );
 }
