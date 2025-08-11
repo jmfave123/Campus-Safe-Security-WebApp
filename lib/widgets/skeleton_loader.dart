@@ -8,12 +8,12 @@ class SkeletonLoader extends StatelessWidget {
   final Color? color;
 
   const SkeletonLoader({
-    Key? key,
+    super.key,
     this.width = double.infinity,
     this.height = 20.0,
     this.borderRadius = 4.0,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class SkeletonLoader extends StatelessWidget {
 
 /// A skeleton card that mimics the stat card layout
 class SkeletonStatCard extends StatelessWidget {
-  const SkeletonStatCard({Key? key}) : super(key: key);
+  const SkeletonStatCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +79,7 @@ class SkeletonStatCard extends StatelessWidget {
 
 /// A skeleton for the campus status card
 class SkeletonCampusStatusCard extends StatelessWidget {
-  const SkeletonCampusStatusCard({Key? key}) : super(key: key);
+  const SkeletonCampusStatusCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +171,7 @@ class SkeletonCampusStatusCard extends StatelessWidget {
 
 /// A skeleton for the chart section
 class SkeletonChartSection extends StatelessWidget {
-  const SkeletonChartSection({Key? key}) : super(key: key);
+  const SkeletonChartSection({super.key});
 
   @override
   Widget build(BuildContext context) {

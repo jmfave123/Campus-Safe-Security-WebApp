@@ -120,8 +120,69 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   stream: _getFilteredReportsStream(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
+                      // Skeleton loader for reports table and stat cards
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                  3,
+                                  (i) => Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8.0),
+                                        child: Container(
+                                          width: 60,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade300,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      )),
+                            ),
+                            const SizedBox(height: 32),
+                            Column(
+                              children: List.generate(
+                                6,
+                                (index) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                          width: 100,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 100,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 160,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 80,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 120,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     }
 
@@ -186,7 +247,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     return Column(
                                       children: [
                                         buildStatCardAlerts(
-                                           'Total Reports',
+                                          'Total Reports',
                                           Text(
                                             totalReports.toString(),
                                             style: const TextStyle(
@@ -574,18 +635,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
+                              // Skeleton loader for profile image
                               return const CircleAvatar(
                                 radius: 20,
                                 backgroundColor: Colors.grey,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                                child: Icon(Icons.person,
+                                    color: Colors.white, size: 20),
                               );
                             }
-
                             final imageUrl = snapshot.data;
-
                             if (imageUrl != null && imageUrl.isNotEmpty) {
                               return CircleAvatar(
                                 radius: 20,
@@ -594,7 +652,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 onBackgroundImageError: (_, __) {},
                               );
                             }
-
                             return CircleAvatar(
                               backgroundColor: Colors.blue.shade100,
                               radius: 20,

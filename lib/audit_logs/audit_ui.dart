@@ -61,7 +61,141 @@ class _AuditUiState extends State<AuditUi> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 24),
+                  // Skeleton loader for stat cards
+                  Row(
+                    children: List.generate(
+                        4,
+                        (i) => Expanded(
+                              child: Container(
+                                margin: i < 3
+                                    ? const EdgeInsets.only(right: 16)
+                                    : null,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade400,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      width: 60,
+                                      height: 24,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      width: 80,
+                                      height: 16,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )),
+                  ),
+                  const SizedBox(height: 24),
+                  // Skeleton loader for filters section
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: List.generate(
+                          4,
+                          (i) => Expanded(
+                                child: Container(
+                                  height: 48,
+                                  margin: i < 3
+                                      ? const EdgeInsets.only(right: 16)
+                                      : null,
+                                  color: Colors.grey.shade300,
+                                ),
+                              )),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Skeleton loader for audit table
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: SizedBox(
+                            width: 120,
+                            height: 20,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.grey,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: List.generate(
+                                6,
+                                (index) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8.0),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                              width: 120,
+                                              height: 20,
+                                              color: Colors.grey.shade300),
+                                          const SizedBox(width: 18),
+                                          Container(
+                                              width: 100,
+                                              height: 20,
+                                              color: Colors.grey.shade300),
+                                          const SizedBox(width: 18),
+                                          Container(
+                                              width: 80,
+                                              height: 20,
+                                              color: Colors.grey.shade300),
+                                          const SizedBox(width: 18),
+                                          Container(
+                                              width: 100,
+                                              height: 20,
+                                              color: Colors.grey.shade300),
+                                        ],
+                                      ),
+                                    )),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(

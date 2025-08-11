@@ -14,6 +14,7 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import '../widgets/skeleton_loader.dart';
 
 enum AlertTarget { student, facultyStaff, all }
 
@@ -64,12 +65,12 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           await Future.wait([
             NotifServices.sendGroupNotification(
               userType: "Student",
-              heading: "Security Alert",
+              heading: "Security Announcement",
               content: message,
             ),
             NotifServices.sendGroupNotification(
               userType: "Faculty & Staff",
-              heading: "Security Alert",
+              heading: "Security Announcement",
               content: message,
             ),
           ]);
@@ -90,7 +91,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Alert saved but notification delivery may have failed: $e'),
+                'Announcement saved but notification delivery may have failed: $e'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -403,7 +404,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     ),
                     const SizedBox(width: 14),
                     const Text(
-                      'Throw Alerts or Announcements',
+                      'Send Announcements',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -451,73 +452,89 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                         ? Column(
                             children: [
                               buildStatCardAlerts(
-  'Total Alerts',
-  StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('alerts_data')
-        .snapshots(),
-    builder: (context, snapshot) {
-      return Text(
-        snapshot.hasData ? '${snapshot.data?.docs.length ?? 0}' : 'Loading...',
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      );
-    },
-  ),
-  Icons.notifications_active,
-  const Color(0xFF4285F4),
-),
+                                'Total Announcements',
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('alerts_data')
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SkeletonStatCard();
+                                    }
+                                    return Text(
+                                      snapshot.hasData
+                                          ? '${snapshot.data?.docs.length ?? 0}'
+                                          : 'Loading...',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Icons.notifications_active,
+                                const Color(0xFF4285F4),
+                              ),
                               const SizedBox(height: 16),
                               buildStatCardAlerts(
-  'Active Alerts',
-  StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('alerts_data')
-        .where('status', isEqualTo: 'active')
-        .snapshots(),
-    builder: (context, snapshot) {
-      return Text(
-        snapshot.hasData ? '${snapshot.data?.docs.length ?? 0}' : 'Loading...',
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      );
-    },
-  ),
-  Icons.warning_rounded,
-  const Color(0xFFFF9800),
-),
+                                'Active Announcements',
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('alerts_data')
+                                      .where('status', isEqualTo: 'active')
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SkeletonStatCard();
+                                    }
+                                    return Text(
+                                      snapshot.hasData
+                                          ? '${snapshot.data?.docs.length ?? 0}'
+                                          : 'Loading...',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Icons.warning_rounded,
+                                const Color(0xFFFF9800),
+                              ),
                               const SizedBox(height: 16),
                               buildStatCardAlerts(
-  'Alert Channels',
-  const Text(
-    'Mobile App',
-    style: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.bold,
-      color: Colors.black87,
-    ),
-  ),
-  Icons.phone_android,
-  const Color(0xFF0F9D58),
-),
+                                'Announcement Channels',
+                                const Text(
+                                  'Mobile App',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Icons.phone_android,
+                                const Color(0xFF0F9D58),
+                              ),
                             ],
                           )
                         : Row(
                             children: [
                               Expanded(
                                 child: buildStatCardAlerts(
-                                  'Total Alerts',
+                                  'Total Announcements',
                                   StreamBuilder<QuerySnapshot>(
                                     stream: FirebaseFirestore.instance
                                         .collection('alerts_data')
                                         .snapshots(),
                                     builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const SkeletonStatCard();
+                                      }
                                       return Text(
                                         snapshot.hasData
                                             ? '${snapshot.data?.docs.length ?? 0}'
@@ -538,13 +555,17 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: buildStatCardAlerts(
-                                  'Active Alerts',
+                                  'Active Announcements',
                                   StreamBuilder<QuerySnapshot>(
                                     stream: FirebaseFirestore.instance
                                         .collection('alerts_data')
                                         .where('status', isEqualTo: 'active')
                                         .snapshots(),
                                     builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const SkeletonStatCard();
+                                      }
                                       return Text(
                                         snapshot.hasData
                                             ? '${snapshot.data?.docs.length ?? 0}'
@@ -564,7 +585,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: buildStatCardAlerts(
-                                  'Alert Channels',
+                                  'Announcement Channel',
                                   const Text(
                                     'Mobile App',
                                     style: TextStyle(
@@ -620,7 +641,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                             ),
                             const SizedBox(width: 12),
                             const Text(
-                              'Send New Alert or Announcement',
+                              'Send an Announcement',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -633,9 +654,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                         DropdownButtonFormField<AlertTarget>(
                           value: _selectedTarget,
                           decoration: InputDecoration(
-                            labelText: 'Send Alert or Announcement To',
+                            labelText: 'Send Announcement To',
                             labelStyle: TextStyle(
-                              color: Colors.red.shade700,
+                              color: Colors.blueGrey.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -645,35 +666,35 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.blueGrey.withOpacity(0.2),
                                   width: 1.5),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.blueGrey.withOpacity(0.2),
                                   width: 1.5),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  const BorderSide(color: Colors.red, width: 2),
+                              borderSide: const BorderSide(
+                                  color: Colors.blue, width: 2),
                             ),
                             filled: true,
-                            fillColor: Colors.red.withOpacity(0.03),
+                            fillColor: Colors.white,
                             prefixIcon: Icon(Icons.people,
-                                color: Colors.red.shade600, size: 22),
+                                color: Colors.blueGrey.shade600, size: 22),
                           ),
                           dropdownColor: Colors.white,
                           icon: Icon(Icons.arrow_drop_down,
-                              color: Colors.red.shade600),
+                              color: Colors.blueGrey.shade600),
                           items: AlertTarget.values.map((target) {
                             return DropdownMenuItem(
                               value: target,
                               child: Text(
                                 _getTargetText(target),
                                 style: TextStyle(
-                                  color: Colors.red.shade800,
+                                  color: Colors.blueGrey.shade800,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -692,11 +713,12 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           controller: _messageController,
                           maxLines: 5,
                           decoration: InputDecoration(
-                            hintText: 'Enter alert message...',
-                            labelText: 'Alert Message',
-                            hintStyle: TextStyle(color: Colors.red.shade300),
+                            hintText: 'Enter announcement message...',
+                            labelText: 'Announcement Message',
+                            hintStyle:
+                                TextStyle(color: Colors.blueGrey.shade300),
                             labelStyle: TextStyle(
-                              color: Colors.red.shade700,
+                              color: Colors.blueGrey.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -706,31 +728,31 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.blueGrey.withOpacity(0.2),
                                   width: 1.5),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.blueGrey.withOpacity(0.2),
                                   width: 1.5),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  const BorderSide(color: Colors.red, width: 2),
+                              borderSide: const BorderSide(
+                                  color: Colors.blue, width: 2),
                             ),
                             filled: true,
-                            fillColor: Colors.red.withOpacity(0.03),
+                            fillColor: Colors.white,
                             prefixIcon: Padding(
                               padding: const EdgeInsets.only(
                                   left: 12, right: 8, top: 12, bottom: 12),
                               child: Icon(Icons.message,
-                                  color: Colors.red.shade600, size: 22),
+                                  color: Colors.blueGrey.shade600, size: 22),
                             ),
                             alignLabelWithHint: true,
                           ),
-                          cursorColor: Colors.red,
+                          cursorColor: Colors.blue,
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.blueGrey.shade800,
@@ -786,7 +808,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                   )
                                 : const Icon(Icons.send),
                             label: const Text(
-                              'Send Alert',
+                              'Send Announcement',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -847,7 +869,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                     size: 24, color: Colors.blue.shade700),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Recent Alerts',
+                                  'Recent Announcements',
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -1019,7 +1041,15 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
       stream: _getFilteredAlertsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Column(
+            children: List.generate(
+              5,
+              (index) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: SkeletonLoader(height: 40, borderRadius: 8),
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
@@ -1030,7 +1060,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                 Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
                 const SizedBox(height: 16),
                 Text(
-                  'Error loading alerts: ${snapshot.error}',
+                  'Error loading announcements: ${snapshot.error}',
                   style: TextStyle(color: Colors.red.shade700),
                 ),
               ],
@@ -1049,7 +1079,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
                 Text(
-                  'No alerts found for the selected time period',
+                  'No announcements found for the selected time period',
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 16,
@@ -1065,7 +1095,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     });
                   },
                   icon: const Icon(Icons.refresh),
-                  label: const Text('View all alerts'),
+                  label: const Text('View all announcements'),
                 ),
               ],
             ),
@@ -1988,13 +2018,14 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               ),
                             ),
                             pw.SizedBox(height: 10),
-                            pw.Text('Total Alerts: ${alertsData.length}'),
+                            pw.Text(
+                                'Total Announcements: ${alertsData.length}'),
                             pw.SizedBox(height: 5),
                             pw.Text(
-                                'Active Alerts: ${alertsData.where((alert) => alert['status'] == 'active').length}'),
+                                'Active Announcements: ${alertsData.where((alert) => alert['status'] == 'active').length}'),
                             pw.SizedBox(height: 5),
                             pw.Text(
-                                'Inactive Alerts: ${alertsData.where((alert) => alert['status'] != 'active').length}'),
+                                'Inactive Announcements: ${alertsData.where((alert) => alert['status'] != 'active').length}'),
                           ],
                         ),
                       ),

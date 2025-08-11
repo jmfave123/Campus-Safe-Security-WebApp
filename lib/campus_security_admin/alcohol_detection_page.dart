@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable, avoid_web_libraries_in_flutter, unnecessary_import, deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import '../widgets/skeleton_loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
@@ -400,14 +401,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text(
-                    'Loading...',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  );
+                  return const SkeletonStatCard();
                 }
 
                 // Apply client-side filtering by status if needed
@@ -463,7 +457,16 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
       stream: _getFilteredDetectionsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          // Show skeleton loaders for table rows
+          return Column(
+            children: List.generate(
+              5,
+              (index) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: SkeletonLoader(height: 40, borderRadius: 8),
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {

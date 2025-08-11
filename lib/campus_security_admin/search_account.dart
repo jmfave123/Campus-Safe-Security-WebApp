@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/skeleton_loader.dart';
 
 class SearchAccountPage extends StatefulWidget {
   const SearchAccountPage({super.key});
@@ -323,6 +324,10 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                       .collection('users')
                                       .snapshots(),
                                   builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SkeletonStatCard();
+                                    }
                                     return Text(
                                       snapshot.hasData
                                           ? '${snapshot.data?.docs.length ?? 0}'
@@ -347,6 +352,10 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                       .where('userType', isEqualTo: 'Student')
                                       .snapshots(),
                                   builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SkeletonStatCard();
+                                    }
                                     return Text(
                                       snapshot.hasData
                                           ? '${snapshot.data?.docs.length ?? 0}'
@@ -372,6 +381,10 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                           isEqualTo: 'Faculty & Staff')
                                       .snapshots(),
                                   builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SkeletonStatCard();
+                                    }
                                     return Text(
                                       snapshot.hasData
                                           ? '${snapshot.data?.docs.length ?? 0}'
@@ -880,27 +893,17 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
   }
 
   Widget _buildSearchResultsView() {
-    if (_isInitialLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(color: Colors.blue),
-            const SizedBox(height: 16),
-            Text(
-              'Loading users...',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 16,
-              ),
-            ),
-          ],
+    if (_isInitialLoading || _isLoading) {
+      // Show skeleton loaders for user rows
+      return Column(
+        children: List.generate(
+          6,
+          (index) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: SkeletonLoader(height: 40, borderRadius: 8),
+          ),
         ),
       );
-    }
-
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.blue));
     }
 
     if (_searchResults.isEmpty) {
@@ -1225,25 +1228,40 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile Image
+                  // Profile Image and skeleton loader for card
                   Center(
                     child: FutureBuilder<String?>(
                       future: _getUserProfileImage(user['id']),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.grey,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                          // Skeleton loader for card and image
+                          return Column(
+                            children: [
+                              Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                width: 160,
+                                height: 20,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: 120,
+                                height: 16,
+                                color: Colors.grey.shade200,
+                              ),
+                            ],
                           );
                         }
-
                         final imageUrl = snapshot.data;
-
                         if (imageUrl != null && imageUrl.isNotEmpty) {
                           return Column(
                             children: [
@@ -1267,7 +1285,6 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                             ],
                           );
                         }
-
                         return CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.blue.shade100,

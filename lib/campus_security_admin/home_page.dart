@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   int _unreadNotificationCount = 0;
 
   static final List<Widget> _pages = <Widget>[
-    AdminDashboard(),
+    const AdminDashboard(),
     const AlcoholDetectionPage(),
     const ThrowAlertsPage(),
     const SearchAccountPage(),

@@ -256,7 +256,36 @@ class _UserLogsPageState extends State<UserLogsPage> {
       stream: _getFilteredLogsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          // Skeleton loader for logs table
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32.0),
+            child: Column(
+              children: List.generate(
+                6,
+                (index) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Container(
+                          width: 100, height: 20, color: Colors.grey.shade300),
+                      const SizedBox(width: 24),
+                      Container(
+                          width: 100, height: 20, color: Colors.grey.shade300),
+                      const SizedBox(width: 24),
+                      Container(
+                          width: 160, height: 20, color: Colors.grey.shade300),
+                      const SizedBox(width: 24),
+                      Container(
+                          width: 80, height: 20, color: Colors.grey.shade300),
+                      const SizedBox(width: 24),
+                      Container(
+                          width: 120, height: 20, color: Colors.grey.shade300),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
@@ -296,8 +325,47 @@ class _UserLogsPageState extends State<UserLogsPage> {
                       builder: (context, enrichedSnapshot) {
                         if (enrichedSnapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
+                          // Skeleton loader for enriched logs
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 32.0),
+                            child: Column(
+                              children: List.generate(
+                                6,
+                                (index) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                          width: 100,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 100,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 160,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 80,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(width: 24),
+                                      Container(
+                                          width: 120,
+                                          height: 20,
+                                          color: Colors.grey.shade300),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
                         }
 
                         final enrichedLogs = enrichedSnapshot.data ?? [];
@@ -820,12 +888,12 @@ class _UserLogsPageState extends State<UserLogsPage> {
               ),
               const SizedBox(height: 12),
               if (isLoading)
-                const Text(
-                  'Loading...',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Container(
+                  width: 60,
+                  height: 78,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 )
               else
