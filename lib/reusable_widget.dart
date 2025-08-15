@@ -1415,7 +1415,7 @@ Widget buildMonthlyReportChart(
                               chartColor.withOpacity(0.8)),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Text(
                         'Generating AI insight...',
                         style: TextStyle(
@@ -1428,9 +1428,7 @@ Widget buildMonthlyReportChart(
                   );
                 } else if (snapshot.hasError) {
                   return Text(
-                    'AI insight unavailable. Showing manual insight.\n' +
-                        _analyticsService.getInsightsFromData(values, monthAbbr,
-                            itemLabel: label),
+                    'AI insight unavailable. Showing manual insight.\n${_analyticsService.getInsightsFromData(values, monthAbbr, itemLabel: label)}',
                     style: TextStyle(
                       fontSize: 12,
                       color: chartColor.withOpacity(0.8),

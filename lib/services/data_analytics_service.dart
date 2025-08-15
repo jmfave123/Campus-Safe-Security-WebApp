@@ -178,7 +178,7 @@ class DataAnalyticsService {
     }
     return 'The highest number of ${itemLabel}s (${highestValue.toInt()}) was in ${months[highestMonth]}, '
         'while the lowest (${lowestValue.toInt()}) was in ${months[lowestMonth]}. '
-        'Overall, ${itemLabel} submissions show a $trend trend over the last year.';
+        'Overall, $itemLabel submissions show a $trend trend over the last year.';
   }
 
   /// Helper for y-axis interval
