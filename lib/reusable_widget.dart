@@ -3,6 +3,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:campus_safe_app_admin_capstone/services/backup_service.dart';
+import 'package:campus_safe_app_admin_capstone/services/data_analytics_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -1056,59 +1057,8 @@ Widget buildStatCard(String title, String value, IconData icon, Color color) {
   );
 }
 
-// Helper method to calculate appropriate interval for y-axis
-double calculateAppropriateInterval(int maxValue) {
-  if (maxValue <= 5) return 1;
-  if (maxValue <= 10) return 2;
-  if (maxValue <= 20) return 4;
-  if (maxValue <= 50) return 10;
-  if (maxValue <= 100) return 20;
-  return (maxValue / 5).ceilToDouble();
-}
-
-// Helper method to generate insights from the data
-String getInsightsFromData(List<double> values, List<String> months,
-    {String itemLabel = 'report'}) {
-  if (values.isEmpty) return 'No data available for analysis.';
-
-  // Find highest and lowest months
-  int highestMonth = 0;
-  int lowestMonth = 0;
-  double highestValue = values[0];
-  double lowestValue = values[0];
-
-  for (int i = 1; i < values.length; i++) {
-    if (values[i] > highestValue) {
-      highestValue = values[i];
-      highestMonth = i;
-    }
-    if (values[i] < lowestValue) {
-      lowestValue = values[i];
-      lowestMonth = i;
-    }
-  }
-
-  // Calculate trend (increasing, decreasing, stable)
-  String trend = 'stable';
-  if (values.length > 3) {
-    double recentAvg = (values[values.length - 1] +
-            values[values.length - 2] +
-            values[values.length - 3]) /
-        3;
-    double earlierAvg = (values[0] + values[1] + values[2]) / 3;
-
-    if (recentAvg > earlierAvg * 1.2) {
-      trend = 'increasing';
-    } else if (recentAvg < earlierAvg * 0.8) {
-      trend = 'decreasing';
-    }
-  }
-
-  // Generate insight text
-  return 'The highest number of ${itemLabel}s (${highestValue.toInt()}) was in ${months[highestMonth]}, '
-      'while the lowest (${lowestValue.toInt()}) was in ${months[lowestMonth]}. '
-      'Overall, ${itemLabel} submissions show a $trend trend over the last year.';
-}
+// Instance of the analytics service
+final DataAnalyticsService _analyticsService = DataAnalyticsService();
 
 Widget buildMonthlyReportChart(
   List<QueryDocumentSnapshot> documents, {
@@ -1121,150 +1071,30 @@ Widget buildMonthlyReportChart(
   bool includeAllMonths = false,
   bool countUniqueIds = false,
 }) {
-  final Map<String, int> monthlyReportCounts = {};
-  final Map<String, Set<String>> monthlyUniqueDocIds =
-      {}; // Track unique document IDs per month
   final now = DateTime.now();
-
-  // Define standard month order from January to December
-  final List<String> monthAbbr = [
-    'JAN',
-    'FEB',
-    'MAR',
-    'APR',
-    'MAY',
-    'JUN',
-    'JUL',
-    'AUG',
-    'SEP',
-    'OCT',
-    'NOV',
-    'DEC'
+  final List<String> monthAbbr = _analyticsService.getMonthAbbr();
+  final Map<String, int> monthlyReportCounts =
+      _analyticsService.getMonthlyCounts(
+    documents,
+    timestampField,
+    includeAllMonths: includeAllMonths,
+    countUniqueIds: countUniqueIds,
+  );
+  final List<String> monthKeys = [
+    for (int i = 0; i < 12; i++)
+      DateFormat('MMM yyyy').format(DateTime(now.year, i + 1, 1))
   ];
-  List<String> monthKeys = [];
-
-  // Initialize all months in the current year with zero counts
-  for (int i = 0; i < 12; i++) {
-    final month = DateTime(now.year, i + 1, 1); // January is 1, December is 12
-    final monthKey = DateFormat('MMM yyyy').format(month);
-    monthKeys.add(monthKey);
-    monthlyReportCounts[monthKey] = 0;
-  }
-
-  // Count reports by month
-  for (var doc in documents) {
-    final data = doc.data() as Map<String, dynamic>;
-    if (data.containsKey(timestampField)) {
-      final dynamic timestampData = data[timestampField];
-      // Handle different timestamp formats
-      DateTime date;
-      if (timestampData is Timestamp) {
-        date = timestampData.toDate();
-      } else if (timestampData is int) {
-        // Handle cases where timestamp might be stored as milliseconds
-        date = DateTime.fromMillisecondsSinceEpoch(timestampData);
-      } else if (timestampData is String) {
-        // Try to parse string format
-        try {
-          date = DateTime.parse(timestampData);
-        } catch (e) {
-          print(
-              'Error parsing timestamp string: $e for doc ${doc.id}. Skipping.');
-          continue;
-        }
-      } else {
-        print('Unsupported timestamp format for doc ${doc.id}. Skipping.');
-        continue;
-      }
-
-      print('Processing doc: ${doc.id}, date: ${date.toString()}');
-
-      // Only consider reports from the current year or include all if specified
-      if (date.year == now.year || includeAllMonths) {
-        final monthKey =
-            DateFormat('MMM yyyy').format(DateTime(date.year, date.month, 1));
-        print(
-            '  Adding to month: $monthKey (previous count: ${monthlyReportCounts[monthKey] ?? 0})');
-
-        // Check if we need to add this month to our tracking
-        if (!monthlyReportCounts.containsKey(monthKey) && includeAllMonths) {
-          // Only add if we don't exceed 12 months total
-          if (monthKeys.length < 12) {
-            monthKeys.add(monthKey);
-            monthlyReportCounts[monthKey] = 0;
-            if (countUniqueIds) {
-              monthlyUniqueDocIds[monthKey] = <String>{};
-            }
-          }
-        }
-
-        if (countUniqueIds) {
-          // Only count each document once per month
-          if (!monthlyUniqueDocIds.containsKey(monthKey)) {
-            monthlyUniqueDocIds[monthKey] = <String>{};
-          }
-
-          if (!monthlyUniqueDocIds[monthKey]!.contains(doc.id)) {
-            monthlyUniqueDocIds[monthKey]!.add(doc.id);
-            monthlyReportCounts[monthKey] =
-                (monthlyReportCounts[monthKey] ?? 0) + 1;
-            print(
-                '  Added unique doc ${doc.id} to $monthKey. Updated count: ${monthlyReportCounts[monthKey]}');
-          } else {
-            print('  Skipping duplicate doc ${doc.id} for $monthKey');
-          }
-        } else {
-          // Standard counting (may count duplicates)
-          monthlyReportCounts[monthKey] =
-              (monthlyReportCounts[monthKey] ?? 0) + 1;
-          print('  Updated count: ${monthlyReportCounts[monthKey]}');
-        }
-      } else {
-        print('  Skipping doc due to year filter: ${date.year} != ${now.year}');
-      }
-    } else {
-      // If document doesn't contain the timestamp field, print for debugging
-      print(
-          'Document missing $timestampField field: ${doc.id}, available fields: ${data.keys.join(', ')}');
-    }
-  }
-
-  print('Final monthly counts: $monthlyReportCounts');
-  print('Month keys in order: $monthKeys');
-
-  // Ensure monthKeys doesn't exceed 12 months
-  if (monthKeys.length > 12) {
-    print(
-        'WARNING: More than 12 months detected, truncating to most recent 12 months');
-    monthKeys = monthKeys.sublist(monthKeys.length - 12);
-  }
-
-  // Get the values in standard month order (Jan to Dec)
-  final List<double> values = [];
-  for (int i = 0; i < monthKeys.length; i++) {
-    values.add(monthlyReportCounts[monthKeys[i]]?.toDouble() ?? 0);
-  }
-
-  // Ensure we have exactly 12 or fewer values
-  if (values.length > 12) {
-    print('WARNING: Truncating values to 12 elements');
-    values.removeRange(12, values.length);
-  }
-
-  // Get the maximum count for y-axis scaling
+  final List<double> values =
+      _analyticsService.getMonthlyValues(monthlyReportCounts, monthKeys);
   final maxCount =
       values.fold(0.0, (prev, count) => count > prev ? count : prev);
-
-  // Calculate appropriate interval for grid lines based on maximum value
-  final interval = calculateAppropriateInterval(maxCount.toInt());
-
-  // Default item label if not provided
+  final interval =
+      _analyticsService.calculateAppropriateInterval(maxCount.toInt());
   final label = itemLabel ?? 'report';
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      // Chart title with count summary
       Row(
         children: [
           Icon(Icons.analytics_outlined, color: chartColor, size: 20),
@@ -1280,8 +1110,6 @@ Widget buildMonthlyReportChart(
         ],
       ),
       const SizedBox(height: 8),
-
-      // Chart description
       Text(
         'Monthly trend of ${label}s for ${now.year} (${documents.length} total)',
         style: TextStyle(
@@ -1290,8 +1118,6 @@ Widget buildMonthlyReportChart(
         ),
       ),
       const SizedBox(height: 16),
-
-      // Main chart area
       Expanded(
         child: Padding(
           padding: const EdgeInsets.only(
@@ -1379,7 +1205,6 @@ Widget buildMonthlyReportChart(
                       if (value == 0) {
                         return const SizedBox.shrink();
                       }
-                      // Only show integer values
                       if (value == value.toInt().toDouble()) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
@@ -1420,17 +1245,13 @@ Widget buildMonthlyReportChart(
                   getTooltipItems: (List<LineBarSpot> touchedSpots) {
                     return touchedSpots.map((spot) {
                       final index = spot.x.toInt();
-
-                      // Make sure index is in valid range
                       if (index < 0 ||
                           index >= monthKeys.length ||
                           index >= values.length) {
-                        return null; // Skip this spot if index is out of range
+                        return null;
                       }
-
                       final monthYear = monthKeys[index];
                       final count = values[index].toInt();
-
                       return LineTooltipItem(
                         '$monthYear\n',
                         const TextStyle(
@@ -1480,10 +1301,7 @@ Widget buildMonthlyReportChart(
               ),
               lineBarsData: [
                 LineChartBarData(
-                  spots: List.generate(
-                      values.length > 12
-                          ? 12
-                          : values.length, // Limit to 12 max points
+                  spots: List.generate(values.length > 12 ? 12 : values.length,
                       (index) => FlSpot(index.toDouble(), values[index])),
                   isCurved: true,
                   gradient: LinearGradient(
@@ -1504,7 +1322,6 @@ Widget buildMonthlyReportChart(
                             values.reduce((a, b) => a > b ? a : b);
                         final double minVal =
                             values.reduce((a, b) => a < b ? a : b);
-
                         if (spot.y == maxVal && maxVal > 0) {
                           return FlDotCirclePainter(
                             radius: 6,
@@ -1553,8 +1370,6 @@ Widget buildMonthlyReportChart(
           ),
         ),
       ),
-
-      // Chart information card
       Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
@@ -1581,13 +1396,70 @@ Widget buildMonthlyReportChart(
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              getInsightsFromData(values, monthAbbr, itemLabel: label),
-              style: TextStyle(
-                fontSize: 12,
-                color: chartColor.withOpacity(0.8),
-                height: 1.4,
+            FutureBuilder<String>(
+              future: _analyticsService.getAIInsights(
+                values: values,
+                months: monthAbbr,
+                itemLabel: label,
               ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              chartColor.withOpacity(0.8)),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Generating AI insight...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: chartColor.withOpacity(0.8),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  );
+                } else if (snapshot.hasError) {
+                  return Text(
+                    'AI insight unavailable. Showing manual insight.\n' +
+                        _analyticsService.getInsightsFromData(values, monthAbbr,
+                            itemLabel: label),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: chartColor.withOpacity(0.8),
+                      height: 1.4,
+                    ),
+                  );
+                } else if (snapshot.hasData &&
+                    snapshot.data != null &&
+                    snapshot.data!.trim().isNotEmpty) {
+                  return Text(
+                    snapshot.data!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: chartColor.withOpacity(0.8),
+                      height: 1.4,
+                    ),
+                  );
+                } else {
+                  return Text(
+                    _analyticsService.getInsightsFromData(values, monthAbbr,
+                        itemLabel: label),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: chartColor.withOpacity(0.8),
+                      height: 1.4,
+                    ),
+                  );
+                }
+              },
             ),
           ],
         ),

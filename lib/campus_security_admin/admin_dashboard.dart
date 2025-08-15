@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../services/campus_status_service.dart';
@@ -278,9 +279,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (user == null) {
       // Show skeleton loaders when user is not logged in yet
       return Row(
-        children: List.generate(4, (index) => 
-          Expanded(child: 
-            Padding(
+        children: List.generate(
+          4,
+          (index) => Expanded(
+            child: Padding(
               padding: EdgeInsets.only(right: index < 3 ? 16 : 0),
               child: const SkeletonStatCard(),
             ),
@@ -288,7 +290,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       );
     }
-    
+
     return Row(
       children: [
         // Active Reports Card
@@ -467,43 +469,104 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  /// Builds the reports analysis section with chart
+  // Pagination state for reports analysis
+  List<firestore.QueryDocumentSnapshot> _reportDocs = [];
+  bool _isLoadingReports = false;
+  bool _hasMoreReports = true;
+  DocumentSnapshot? _lastReportDoc;
+  static const int _reportsPageSize = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInitialReports();
+  }
+
+  Future<void> _fetchInitialReports() async {
+    setState(() {
+      _isLoadingReports = true;
+    });
+    firestore.QuerySnapshot snapshot = await firestore
+        .FirebaseFirestore.instance
+        .collection('reports_to_campus_security')
+        .orderBy('timestamp', descending: true)
+        .limit(_reportsPageSize)
+        .get();
+    setState(() {
+      _reportDocs = snapshot.docs;
+      _isLoadingReports = false;
+      _hasMoreReports = snapshot.docs.length == _reportsPageSize;
+      _lastReportDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+    });
+  }
+
+  Future<void> _fetchMoreReports() async {
+    if (!_hasMoreReports || _isLoadingReports) return;
+    setState(() {
+      _isLoadingReports = true;
+    });
+    firestore.Query query = firestore.FirebaseFirestore.instance
+        .collection('reports_to_campus_security')
+        .orderBy('timestamp', descending: true)
+        .limit(_reportsPageSize);
+    if (_lastReportDoc != null) {
+      query = query.startAfterDocument(_lastReportDoc!);
+    }
+    firestore.QuerySnapshot snapshot = await query.get();
+    setState(() {
+      _reportDocs.addAll(snapshot.docs);
+      _isLoadingReports = false;
+      _hasMoreReports = snapshot.docs.length == _reportsPageSize;
+      if (snapshot.docs.isNotEmpty) {
+        _lastReportDoc = snapshot.docs.last;
+      }
+    });
+  }
+
+  /// Builds the reports analysis section with chart and pagination
   Widget _buildReportsAnalysisSection(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('reports_to_campus_security')
-          .limit(1)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SkeletonChartSection();
-        }
-        
-        return Container(
-          height: 500,
-          decoration: boxDecoration2(
-              Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
-          child: buildReportsAnalysisWidget(
-            context: context,
-            title: 'Reports Analysis',
-            icon: Icons.bar_chart,
-            buttonText: 'See All Reports',
-            routeName: '/reports',
-            collectionName: 'reports_to_campus_security',
-            orderByField: 'timestamp',
-            buildChartFunction: (documents) => buildMonthlyReportChart(
-              documents,
-              timestampField: 'timestamp',
-              chartTitle: 'Monthly Report Trends',
-              yAxisTitle: 'Number of Reports',
-              chartColor: Colors.blue,
-              insightTitle: 'Report Analytics Insights',
-              itemLabel: 'report',
+    return Container(
+      height: 500,
+      decoration: boxDecoration2(
+          Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
+      child: Column(
+        children: [
+          Expanded(
+            child: buildReportsAnalysisWidget(
+              context: context,
+              title: 'Reports Analysis',
+              icon: Icons.bar_chart,
+              buttonText: 'See All Reports',
+              routeName: '/reports',
+              collectionName: 'reports_to_campus_security',
+              orderByField: 'timestamp',
+              buildChartFunction: (documents) => buildMonthlyReportChart(
+                _reportDocs,
+                timestampField: 'timestamp',
+                chartTitle: 'Monthly Report Trends',
+                yAxisTitle: 'Number of Reports',
+                chartColor: Colors.blue,
+                insightTitle: 'Report Analytics Insights',
+                itemLabel: 'report',
+              ),
+              onButtonPressed: () => _navigateToTab(context, 5), // Reports tab
             ),
-            onButtonPressed: () => _navigateToTab(context, 5), // Reports tab
           ),
-        );
-      },
+          if (_isLoadingReports)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            ),
+          if (_hasMoreReports && !_isLoadingReports)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton(
+                onPressed: _fetchMoreReports,
+                child: const Text('Load More Reports'),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -518,7 +581,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SkeletonChartSection();
         }
-        
+
         return Container(
           height: 500,
           decoration: boxDecoration2(
@@ -566,7 +629,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SkeletonChartSection();
         }
-        
+
         return Container(
           height: 500,
           decoration: boxDecoration2(
@@ -593,7 +656,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 countUniqueIds: true,
               );
             },
-            onButtonPressed: () => _navigateToTab(context, 2), // Throw Alerts tab
+            onButtonPressed: () =>
+                _navigateToTab(context, 2), // Throw Alerts tab
           ),
         );
       },

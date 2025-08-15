@@ -1044,8 +1044,8 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           return Column(
             children: List.generate(
               5,
-              (index) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
+              (index) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
                 child: SkeletonLoader(height: 40, borderRadius: 8),
               ),
             ),
