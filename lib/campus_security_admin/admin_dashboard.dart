@@ -368,7 +368,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ErrorUtils.showErrorSnackBar(context, snapshot.error);
           }
           return _buildStatCard(
-            'Alerts',
+            'Announcements',
             'Error',
             Icons.error_outline,
             const Color(0xFFEA4335),
@@ -377,7 +377,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildStatCard(
-            'Alerts',
+            'Announcements',
             'Loading...',
             Icons.hourglass_empty,
             const Color.fromARGB(255, 227, 26, 32),
@@ -386,7 +386,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         final count = snapshot.data?.docs.length ?? 0;
         return _buildStatCard(
-          'Alerts',
+          'Announcements',
           count.toString(),
           Icons.warning_rounded,
           const Color.fromARGB(255, 227, 26, 32),
@@ -636,9 +636,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Colors.white, 16, Colors.grey, 0.1, 0, 10, const Offset(0, 4)),
           child: buildReportsAnalysisWidget(
             context: context,
-            title: 'Alerts Analysis',
+            title: 'Announcement Analysis',
             icon: Icons.warning_outlined,
-            buttonText: 'See All Alerts',
+            buttonText: 'See All Announcements',
             routeName: '/reports',
             collectionName: 'alerts_data',
             orderByField: 'timestamp',
@@ -647,11 +647,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               return buildMonthlyReportChart(
                 documents,
                 timestampField: 'timestamp',
-                chartTitle: 'Monthly Alert Trends',
-                yAxisTitle: 'Number of Alerts',
+                chartTitle: 'Monthly Announcement Trends',
+                yAxisTitle: 'Number of Announcements',
                 chartColor: Colors.red,
-                insightTitle: 'Alert Pattern Insights',
-                itemLabel: 'alert',
+                insightTitle: 'Announcement Pattern Insights',
+                itemLabel: 'announcement',
                 includeAllMonths: true,
                 countUniqueIds: true,
               );
