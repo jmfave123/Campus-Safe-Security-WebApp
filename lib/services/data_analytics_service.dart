@@ -129,20 +129,11 @@ class DataAnalyticsService {
 
   /// Returns standard month abbreviations (Jan-Dec)
   List<String> getMonthAbbr() {
-    return [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC'
-    ];
+    final now = DateTime.now();
+    return List.generate(12, (i) {
+      final month = DateTime(now.year, i + 1, 1);
+      return DateFormat('MMM').format(month).toUpperCase();
+    });
   }
 
   /// Manual insight generation (same as getInsightsFromData)

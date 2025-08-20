@@ -1092,6 +1092,35 @@ Widget buildMonthlyReportChart(
       _analyticsService.calculateAppropriateInterval(maxCount.toInt());
   final label = itemLabel ?? 'report';
 
+  // If there is no meaningful data (empty or all zero), show a friendly placeholder
+  final bool allZero = values.isEmpty || values.every((v) => v == 0);
+  if (allZero) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'No data available for the selected period',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try refreshing or adjust filters.',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [

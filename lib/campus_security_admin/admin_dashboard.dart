@@ -36,6 +36,12 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   final CampusStatusService _campusStatusService = CampusStatusService();
   bool _isRefreshing = false;
+  // Controller for the reason input — keep in state to avoid recreation on rebuilds
+  final TextEditingController _statusReasonController = TextEditingController();
+  // Selected status stored in state so selection persists across rebuilds
+  String? _selectedStatus;
+  // Flag to indicate update in progress to prevent duplicate submissions
+  bool _isUpdatingStatus = false;
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
@@ -96,6 +102,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _statusReasonController.dispose();
+    super.dispose();
   }
 
   /// Builds the dashboard header with icon, title, refresh, and backup buttons
@@ -541,7 +553,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               collectionName: 'reports_to_campus_security',
               orderByField: 'timestamp',
               buildChartFunction: (documents) => buildMonthlyReportChart(
-                _reportDocs,
+                documents,
                 timestampField: 'timestamp',
                 chartTitle: 'Monthly Report Trends',
                 yAxisTitle: 'Number of Reports',
@@ -874,93 +886,129 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required Function(String, String, BuildContext) onStatusChange,
     required BuildContext context,
   }) {
-    final TextEditingController reasonController = TextEditingController();
-    String selectedStatus = currentStatus.toLowerCase();
+    // initialize selected status if not set
+    _selectedStatus ??= currentStatus.toLowerCase();
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-                color: Colors.grey.shade50,
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  value: selectedStatus,
-                  items: _buildStatusDropdownItems(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        selectedStatus = value;
-                      });
-                    }
-                  },
-                ),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status dropdown
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+            color: Colors.grey.shade50,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedStatus,
+              items: _buildStatusDropdownItems(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedStatus = value;
+                  });
+                }
+              },
             ),
+          ),
+        ),
 
-            const SizedBox(height: 12),
+        const SizedBox(height: 12),
 
-            // Reason text field
-            TextField(
-              controller: reasonController,
-              decoration: InputDecoration(
-                hintText: 'Reason for status change',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-              maxLines: 2,
+        // Reason text field (use controller from state)
+        TextField(
+          controller: _statusReasonController,
+          decoration: InputDecoration(
+            hintText: 'Reason for status change',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+          maxLines: 2,
+        ),
 
-            const SizedBox(height: 12),
+        const SizedBox(height: 12),
 
-            // Update button
-            ElevatedButton(
-              onPressed: () => _handleStatusUpdate(
-                  selectedStatus, reasonController, onStatusChange, context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getColorForStatus(selectedStatus),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Update Status'),
+        // Update button
+        ElevatedButton(
+          onPressed: _isUpdatingStatus
+              ? null
+              : () => _handleStatusUpdate(
+                  _selectedStatus ?? currentStatus.toLowerCase(),
+                  _statusReasonController,
+                  onStatusChange,
+                  context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _getColorForStatus(
+                _selectedStatus ?? currentStatus.toLowerCase()),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        );
-      },
+          ),
+          child: _isUpdatingStatus
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Update Status'),
+        ),
+      ],
     );
   }
 
   /// Handles the status update when the admin clicks the update button
-  void _handleStatusUpdate(
+  Future<void> _handleStatusUpdate(
       String selectedStatus,
       TextEditingController reasonController,
       Function(String, String, BuildContext) onStatusChange,
-      BuildContext context) {
+      BuildContext context) async {
     final reason = reasonController.text.trim();
-    if (reason.isNotEmpty) {
-      onStatusChange(selectedStatus, reason, context);
-      reasonController.clear();
-    } else {
+    if (reason.isEmpty) {
       // Show error
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Please provide a reason for the status change')),
       );
+      return;
+    }
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      // Call the provided update function and await if it returns a Future
+      final result = onStatusChange(selectedStatus, reason, context);
+      if (result is Future) {
+        await result;
+      }
+
+      // Clear the reason input and reset local selection so UI re-initializes
+      setState(() {
+        reasonController.clear();
+        _statusReasonController.clear();
+        _selectedStatus = null;
+      });
+    } catch (e) {
+      if (context.mounted) {
+        ErrorUtils.showErrorSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
     }
   }
 

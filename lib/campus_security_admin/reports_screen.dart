@@ -4,14 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../reusable_widget.dart';
-import 'package:http/http.dart' as http;
-import 'dart:html' as html;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:typed_data';
-import 'package:flutter/services.dart';
-import '../services/notify_services.dart';
+import '../services/user_reports_service.dart';
+import '../services/reports_pdf_service.dart';
+import '../services/image_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -21,6 +16,11 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  // Services
+  final UserReportsService _reportsService = UserReportsService();
+  final ReportsPDFService _pdfService = ReportsPDFService();
+  final ImageService _imageService = ImageService();
+
   String _selectedDateFilter = "Today";
   DateTime? _customStartDate;
   DateTime? _customEndDate;
@@ -102,7 +102,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           size: 18, color: Colors.blue.shade700),
                       const SizedBox(width: 8),
                       Text(
-                        'Date range: ${_formatDate(_customStartDate)} - ${_formatDate(_customEndDate)}',
+                        'Date range: ${_reportsService.formatDate(_customStartDate)} - ${_reportsService.formatDate(_customEndDate)}',
                         style: TextStyle(
                           color: Colors.blue.shade800,
                           fontWeight: FontWeight.w500,
@@ -117,7 +117,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               // Wrap the Stats Cards and Reports Table in a StreamBuilder
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: _getFilteredReportsStream(),
+                  stream: _reportsService.getFilteredReportsStream(
+                    _selectedDateFilter,
+                    _customStartDate,
+                    _customEndDate,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       // Skeleton loader for reports table and stat cards
@@ -242,6 +246,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                               ?.toLowerCase() ==
                                           'resolved')
                                       .length;
+                                  final inProgressReports = reports
+                                      .where((doc) =>
+                                          (doc.data() as Map<String, dynamic>)[
+                                                  'status']
+                                              ?.toLowerCase() ==
+                                          'in progress')
+                                      .length;
+                                  final falseReportCount = reports
+                                      .where((doc) =>
+                                          (doc.data() as Map<String, dynamic>)[
+                                                  'status']
+                                              ?.toLowerCase() ==
+                                          'false report')
+                                      .length;
 
                                   if (constraints.maxWidth < 600) {
                                     return Column(
@@ -286,6 +304,34 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           ),
                                           Icons.task_alt,
                                           const Color(0xFF0F9D58),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        buildStatCardAlerts(
+                                          'In Progress Reports',
+                                          Text(
+                                            inProgressReports.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Icons.engineering,
+                                          Colors.blue,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        buildStatCardAlerts(
+                                          'False Reports',
+                                          Text(
+                                            falseReportCount.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Icons.report_problem,
+                                          Colors.red.shade700,
                                         ),
                                       ],
                                     );
@@ -337,6 +383,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                             ),
                                             Icons.task_alt,
                                             const Color(0xFF0F9D58),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: buildStatCardAlerts(
+                                            'In Progress Reports',
+                                            Text(
+                                              inProgressReports.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                            Icons.engineering,
+                                            Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: buildStatCardAlerts(
+                                            'False Reports',
+                                            Text(
+                                              falseReportCount.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                            Icons.report_problem,
+                                            Colors.red.shade700,
                                           ),
                                         ),
                                       ],
@@ -631,7 +709,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       children: [
                         // User profile image
                         FutureBuilder<String?>(
-                          future: _getUserProfileImage(userId),
+                          future: _reportsService.getUserProfileImage(userId),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -656,7 +734,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               backgroundColor: Colors.blue.shade100,
                               radius: 20,
                               child: Text(
-                                _getInitials(report['userName'] ?? 'NA'),
+                                _reportsService
+                                    .getInitials(report['userName'] ?? 'NA'),
                                 style: TextStyle(
                                   color: Colors.blue.shade700,
                                   fontWeight: FontWeight.bold,
@@ -1089,57 +1168,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       default:
         return Colors.blue;
     }
-  }
-
-  Stream<QuerySnapshot> _getFilteredReportsStream() {
-    Query query =
-        FirebaseFirestore.instance.collection('reports_to_campus_security');
-
-    // Apply date filters
-    DateTime now = DateTime.now();
-    DateTime? startDate;
-    DateTime? endDate;
-
-    switch (_selectedDateFilter) {
-      case 'Today':
-        startDate = DateTime(now.year, now.month, now.day);
-        endDate = now;
-        break;
-      case 'Yesterday':
-        startDate = DateTime(now.year, now.month, now.day - 1);
-        endDate = DateTime(now.year, now.month, now.day)
-            .subtract(const Duration(milliseconds: 1));
-        break;
-      case 'Last Week':
-        startDate = DateTime(now.year, now.month, now.day - 7);
-        endDate = now;
-        break;
-      case 'Last Month':
-        startDate = DateTime(now.year, now.month - 1, now.day);
-        endDate = now;
-        break;
-      case 'Custom':
-        if (_customStartDate != null && _customEndDate != null) {
-          startDate = _customStartDate!;
-          endDate = _customEndDate!
-              .add(const Duration(days: 1))
-              .subtract(const Duration(milliseconds: 1));
-        }
-        break;
-      default: // 'All'
-        break;
-    }
-
-    // Date filter
-    if (startDate != null && endDate != null) {
-      query = query
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-    }
-
-    // Add ordering
-    return query.orderBy('timestamp', descending: true).limit(100).snapshots();
   }
 
   void _showReportDetails(Map<String, dynamic> report) {
@@ -1850,7 +1878,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     remarksController.text = report['resolveRemarks'] ?? '';
     final TextEditingController falseInfoRemarksController =
         TextEditingController();
-    falseInfoRemarksController.text = report['falseInfoRemarks'] ?? '';
+    falseInfoRemarksController.text = report['falseInfoRemarks  '] ?? '';
 
     // Get current status to implement restrictions
     final currentStatus = report['status'] ?? 'pending';
@@ -1860,7 +1888,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       builder: (context) => StatefulBuilder(builder: (context, setState) {
         // Determine which status options are available based on current status
         List<Map<String, dynamic>> availableStatusOptions =
-            _getAvailableStatusOptions(currentStatus);
+            _reportsService.getAvailableStatusOptions(currentStatus);
 
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -2132,70 +2160,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // Define available status options based on current status
-  List<Map<String, dynamic>> _getAvailableStatusOptions(String currentStatus) {
-    final List<Map<String, dynamic>> allOptions = [
-      {
-        'value': 'pending',
-        'label': 'Pending',
-        'icon': Icons.pending_actions,
-        'color': Colors.orange,
-      },
-      {
-        'value': 'in progress',
-        'label': 'In Progress',
-        'icon': Icons.engineering,
-        'color': Colors.blue,
-      },
-      {
-        'value': 'resolved',
-        'label': 'Resolved',
-        'icon': Icons.task_alt,
-        'color': Colors.green,
-      },
-      {
-        'value': 'false information',
-        'label': 'False Information',
-        'icon': Icons.report_problem,
-        'color': Colors.red.shade700,
-      },
-    ];
-
-    // Apply restrictions based on current status
-    switch (currentStatus.toLowerCase()) {
-      case 'in progress':
-        // Can't go back to pending from in progress
-        return allOptions.map((option) {
-          if (option['value'] == 'pending') {
-            return {...option, 'disabled': true};
-          }
-          return option;
-        }).toList();
-
-      case 'resolved':
-        // Can't change from resolved to any other status
-        return allOptions.map((option) {
-          if (option['value'] != 'resolved') {
-            return {...option, 'disabled': true};
-          }
-          return option;
-        }).toList();
-
-      case 'false information':
-        // Can't change from false information to any other status
-        return allOptions.map((option) {
-          if (option['value'] != 'false information') {
-            return {...option, 'disabled': true};
-          }
-          return option;
-        }).toList();
-
-      default:
-        // No restrictions for pending status
-        return allOptions;
-    }
-  }
-
   // Show confirmation dialog before applying status changes
   void _showStatusUpdateConfirmation({
     required BuildContext context,
@@ -2300,8 +2264,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           // Close the status update dialog (parent)
                           Navigator.of(context).pop();
 
-                          // Apply the status change
-                          _changeStatus(reportId, newStatus, remarks);
+                          // Apply the status change using the service
+                          _changeStatusWithService(
+                              reportId, newStatus, remarks);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber.shade600,
@@ -2322,6 +2287,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
       },
     );
+  }
+
+  // Change status using the service
+  Future<void> _changeStatusWithService(String reportId, String newStatus,
+      [String? remarks]) async {
+    try {
+      await _reportsService.updateReportStatus(reportId, newStatus, remarks);
+
+      // Show success dialog
+      if (mounted) {
+        _showSuccessDialog(newStatus);
+      }
+    } catch (e) {
+      print('Error updating status: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Update the simple status option to support disabled state
@@ -2412,109 +2401,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Future<void> _changeStatus(String reportId, String newStatus,
-      [String? remarks]) async {
-    try {
-      // First, get the current report data to access the reporter's userId
-      final reportDoc = await FirebaseFirestore.instance
-          .collection('reports_to_campus_security')
-          .doc(reportId)
-          .get();
-
-      if (!reportDoc.exists) {
-        throw Exception('Report not found');
-      }
-
-      final reportData = reportDoc.data() as Map<String, dynamic>;
-      final reporterId = reportData['userId'];
-      final reportTitle = reportData['incidentType'] ?? 'Report';
-      final userName = reportData['userName'] ?? 'User';
-
-      // Prepare update data for the report
-      final Map<String, dynamic> updateData = {'status': newStatus};
-
-      // Add or remove remarks based on status
-      if (newStatus == 'resolved' && remarks != null) {
-        updateData['resolveRemarks'] = remarks;
-        updateData['resolvedAt'] = FieldValue.serverTimestamp();
-      } else if (newStatus == 'false information' && remarks != null) {
-        updateData['falseInfoRemarks'] = remarks;
-        updateData['falseInfoMarkedAt'] = FieldValue.serverTimestamp();
-      }
-
-      // Update the report
-      await FirebaseFirestore.instance
-          .collection('reports_to_campus_security')
-          .doc(reportId)
-          .update(updateData);
-
-      // Create notification for the user
-      if (reporterId != null) {
-        // Create Firestore notification entry
-        await _createUserNotification(
-          reporterId: reporterId,
-          reportId: reportId,
-          reportTitle: reportTitle,
-          newStatus: newStatus,
-          remarks: remarks,
-        );
-
-        // Send push notification to user device
-        try {
-          // Generate notification message
-          final String message =
-              _generateNotificationMessage(reportTitle, newStatus);
-
-          // Get user data to determine user type
-          // final userDoc = await FirebaseFirestore.instance
-          //     .collection('users')
-          //     .doc(reporterId)
-          //     .get();
-
-          // if (userDoc.exists) {
-          //   final userData = userDoc.data() as Map<String, dynamic>;
-          //   final userType = userData['userType'] ??
-          //       "Student"; // Default to Student if no type found
-
-          //   // Send push notification to the user
-          //   await NotifServices.sendGroupNotification(
-          //     userType: userType,
-          //     heading: "Report Status Update",
-          //     content: message,
-          //   );
-
-          await NotifServices.sendNotificationToSpecificUser(
-            userId: reporterId,
-            heading: "Report Status Update",
-            content: message,
-          );
-
-          print(
-              'Push notification sent to $userName (ID: $reportId) about report status update');
-        } catch (e) {
-          // Log error but don't stop the process if push notification fails
-          print('Error sending push notification: $e');
-        }
-      }
-
-      // Show success dialog instead of just a snackbar
-      if (mounted) {
-        _showSuccessDialog(newStatus);
-      }
-    } catch (e) {
-      print('Error updating status: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating status: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   // New method to show a success dialog after updating status
   void _showSuccessDialog(String newStatus) {
     showDialog(
@@ -2595,53 +2481,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Future<void> _createUserNotification({
-    required String reporterId,
-    required String reportId,
-    required String reportTitle,
-    required String newStatus,
-    String? remarks,
-  }) async {
-    try {
-      // Generate notification message based on status
-      final String message =
-          _generateNotificationMessage(reportTitle, newStatus);
-
-      // Create notification document
-      await FirebaseFirestore.instance
-          .collection('reports_notifications_for_users')
-          .add({
-        'userId': reporterId,
-        'reportId': reportId,
-        'message': message,
-        'status': newStatus,
-        'remarks': remarks,
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-      });
-    } catch (e) {
-      // Silent error - don't prevent status update if notification fails
-    }
-  }
-
-  String _generateNotificationMessage(String reportTitle, String status) {
-    switch (status.toLowerCase()) {
-      case 'in progress':
-        return 'Your report about "$reportTitle" is now being processed by our security team. We\'ll keep you updated on its progress.';
-      case 'resolved':
-        return 'Good news! Your report about "$reportTitle" has been resolved. You can check the details in the app.';
-      case 'false information':
-        return 'Your report about "$reportTitle" has been marked as containing incorrect information. Please check the app for more details.';
-      default:
-        return 'Your report about "$reportTitle" has been updated to "$status". Please check the app for more information.';
-    }
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    return DateFormat('MMM dd, yyyy').format(date);
-  }
-
   void _viewFullImage(String imageUrl) {
     showDialog(
       context: context,
@@ -2718,10 +2557,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _downloadImage(String imageUrl) async {
-    try {
-      final response = await http.get(Uri.parse(imageUrl));
-
-      if (response.statusCode == 200) {
+    await _imageService.downloadImage(
+      imageUrl,
+      onSuccess: () {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -2730,26 +2568,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           );
         }
-      } else {
+      },
+      onError: (error) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to download image: ${response.statusCode}'),
+              content: Text(error),
               backgroundColor: Colors.red,
             ),
           );
         }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error downloading image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+      },
+    );
   }
 
   // Build Generate Report Button
@@ -2766,7 +2596,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       onPressed: () async {
         // First check if there's data available
         try {
-          final querySnapshot = await _getFilteredReportsQuery().get();
+          final querySnapshot = await _reportsService
+              .getFilteredReportsQuery(
+                _selectedDateFilter,
+                _customStartDate,
+                _customEndDate,
+              )
+              .get();
           final docs = querySnapshot.docs;
 
           if (docs.isEmpty) {
@@ -2839,486 +2675,81 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // Generate and download report
+  // Generate and download report using the service
   Future<void> _generateAndDownloadReport() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 300, // Constrain dialog width
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 16),
+                const CircularProgressIndicator(color: Colors.blue),
+                const SizedBox(height: 24),
+                Text(
+                  'Generating Report...',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please wait while we prepare your report',
+                  style: TextStyle(
+                    color: Colors.blueGrey.shade600,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Container(
-              width: 300, // Constrain dialog width
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      await _pdfService.generateAndDownloadReport(
+        reportsQuery: _reportsService.getFilteredReportsQuery(
+          _selectedDateFilter,
+          _customStartDate,
+          _customEndDate,
+        ),
+        selectedDateFilter: _selectedDateFilter,
+        onError: (error) {
+          Navigator.of(context).pop(); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
                 children: [
-                  const SizedBox(height: 16),
-                  const CircularProgressIndicator(color: Colors.blue),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Gathering Report Data...',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.blue.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please wait while we prepare your report',
-                    style: TextStyle(
-                      color: Colors.blueGrey.shade600,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
+                  const Icon(Icons.error_outline,
+                      color: Colors.white, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(error)),
                 ],
               ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              margin: const EdgeInsets.all(10),
+              duration: const Duration(seconds: 5),
             ),
           );
         },
-      );
-
-      // Get reports data based on current filter
-      final QuerySnapshot reportsSnapshot =
-          await _getFilteredReportsQuery().get();
-      final List<Map<String, dynamic>> reportsData =
-          reportsSnapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        final timestamp = data['timestamp'] as Timestamp?;
-        final formattedDate = timestamp != null
-            ? DateFormat('MMM d, y HH:mm').format(timestamp.toDate())
-            : 'Time not available';
-
-        String? imageUrl = data['imageUrl'];
-
-        return {
-          'userName': data['userName'] ?? 'N/A',
-          'incidentType': data['incidentType'] ?? 'N/A',
-          'description': data['description'] ?? 'No description',
-          'location': data['location'] ?? 'Unknown location',
-          'date': formattedDate,
-          'status': data['status'] ?? 'pending',
-          'imageUrl': imageUrl,
-        };
-      }).toList();
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      // Generate PDF
-      await _generatePDF(reportsData);
-    } catch (e) {
-      // Close loading dialog if there's an error
-      Navigator.of(context).pop();
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Error generating report: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(10),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
-
-  // Generate PDF Report
-  Future<void> _generatePDF(List<Map<String, dynamic>> reportsData) async {
-    try {
-      // Show loading indicator for image downloading
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: Container(
-                width: 300, // Constrain dialog width
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 16),
-                    const CircularProgressIndicator(color: Colors.blue),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Preparing Images...',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.blue.shade800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Downloading images for PDF report',
-                      style: TextStyle(
-                        color: Colors.blueGrey.shade600,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      }
-
-      // Download images first if available
-      final List<Map<String, dynamic>> reportsWithImages =
-          await Future.wait(reportsData.map((report) async {
-        final imageUrl = report['imageUrl'];
-        if (imageUrl != null && imageUrl.toString().isNotEmpty) {
-          try {
-            final response = await http.get(Uri.parse(imageUrl));
-            if (response.statusCode == 200) {
-              return {...report, 'imageData': response.bodyBytes};
-            }
-          } catch (e) {
-            // Silently continue without the image
-          }
-        }
-        // Return original report if no image or error
-        return report;
-      }));
-
-      // Close the loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Load the logo image
-      final ByteData logoData = await rootBundle.load('assets/ustpLogo.png');
-      final Uint8List logoBytes = logoData.buffer.asUint8List();
-      final logoImage = pw.MemoryImage(logoBytes);
-
-      // Create a PDF document
-      final pdf = pw.Document();
-
-      // Add a title page
-      pdf.addPage(pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Logo at top left
-                pw.Image(logoImage, width: 200, height: 100),
-                pw.SizedBox(height: 20),
-                // Centered content
-                pw.Center(
-                  child: pw.Column(
-                    children: [
-                      pw.Text(
-                        'Campus Safety Reports',
-                        style: pw.TextStyle(
-                            fontSize: 24, fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                      pw.SizedBox(height: 20),
-                      pw.Text(
-                        'Generated on: ${DateFormat('MMMM d, y HH:mm').format(DateTime.now())}',
-                        style: const pw.TextStyle(
-                          fontSize: 16,
-                        ),
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Text(
-                        'Filter: $_selectedDateFilter',
-                        style: const pw.TextStyle(
-                          fontSize: 16,
-                        ),
-                      ),
-                      pw.SizedBox(height: 30),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(10),
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border.all(width: 1),
-                          borderRadius:
-                              const pw.BorderRadius.all(pw.Radius.circular(5)),
-                        ),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              'Summary:',
-                              style: pw.TextStyle(
-                                fontSize: 16,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                            ),
-                            pw.SizedBox(height: 10),
-                            pw.Text('Total Reports: ${reportsData.length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'Pending Reports: ${reportsData.where((report) => report['status'] == 'pending').length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'In Progress: ${reportsData.where((report) => report['status'] == 'in progress').length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'Resolved Reports: ${reportsData.where((report) => report['status'] == 'resolved').length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'False Information: ${reportsData.where((report) => report['status'] == 'false information').length}'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }));
-
-      // Create a table for the reports data
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          header: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Logo and title in a row
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Logo at the top left with consistent size
-                    pw.Image(logoImage, width: 100, height: 50),
-                    pw.Text(
-                      'Campus Safety Reports - Details',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 5),
-                pw.Divider(),
-              ],
-            );
-          },
-          build: (pw.Context context) {
-            // Create a table
-            return [
-              pw.Table.fromTextArray(
-                headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.grey300,
-                ),
-                headerHeight: 30,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                  1: pw.Alignment.centerLeft,
-                  2: pw.Alignment.centerLeft,
-                  3: pw.Alignment.centerLeft,
-                  4: pw.Alignment.center,
-                  5: pw.Alignment.center,
-                },
-                headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.black,
-                ),
-                cellPadding: const pw.EdgeInsets.all(5),
-                headers: [
-                  'Reported By',
-                  'Incident Type',
-                  'Location',
-                  'Description',
-                  'Date',
-                  'Status'
-                ],
-                data: reportsWithImages.map((report) {
-                  return [
-                    report['userName'],
-                    report['incidentType'],
-                    report['location'],
-                    report['description'],
-                    report['date'],
-                    report['status'],
-                  ];
-                }).toList(),
-              ),
-            ];
-          },
-          footer: (pw.Context context) {
-            return pw.Container(
-              alignment: pw.Alignment.centerRight,
-              margin: const pw.EdgeInsets.only(top: 10),
-              child: pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                  fontSize: 12,
-                  color: PdfColors.grey700,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-
-      // Add pages with images (if available)
-      for (var report in reportsWithImages) {
-        final imageData = report['imageData'];
-        if (imageData != null && _isValidImageData(imageData)) {
-          await _addImagePageToPdf(pdf, report, imageData, logoImage);
-        }
-      }
-
-      // Save the PDF
-      final bytes = await pdf.save();
-
-      // Show confirmation dialog before downloading
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              width: 400, // Constrain dialog width
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.picture_as_pdf_rounded,
-                        color: Colors.blue, size: 38),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'PDF Report Ready',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Your report has been generated. Would you like to download it now?',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.blueGrey),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blueGrey,
-                            side: BorderSide(color: Colors.blue.shade100),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.download),
-                          label: const Text('Download'),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _downloadPDF(bytes);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Show error message if something went wrong
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Error generating PDF: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(10),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
-
-  // Method to handle the actual download
-  void _downloadPDF(Uint8List bytes) {
-    try {
-      // For web platform, use html for downloading
-      if (kIsWeb) {
-        final fileName =
-            'campus_reports_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-
-        // Create a blob from bytes
-        final blob = html.Blob([bytes], 'application/pdf');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..style.display = 'none';
-
-        html.document.body?.children.add(anchor);
-        anchor.click();
-        html.document.body?.children.remove(anchor);
-        html.Url.revokeObjectUrl(url);
-
-        if (mounted) {
-          // Show success message
+        onSuccess: () {
+          Navigator.of(context).pop(); // Close loading dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -3336,257 +2767,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               duration: const Duration(seconds: 3),
             ),
           );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Error downloading PDF: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(10),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  // Helper method to get the filtered query (not stream) for reports
-  Query _getFilteredReportsQuery() {
-    Query query =
-        FirebaseFirestore.instance.collection('reports_to_campus_security');
-
-    // Apply date filters
-    DateTime now = DateTime.now();
-    DateTime? startDate;
-    DateTime? endDate;
-
-    switch (_selectedDateFilter) {
-      case 'Today':
-        startDate = DateTime(now.year, now.month, now.day);
-        endDate = now;
-        break;
-      case 'Yesterday':
-        startDate = DateTime(now.year, now.month, now.day - 1);
-        endDate = DateTime(now.year, now.month, now.day)
-            .subtract(const Duration(milliseconds: 1));
-        break;
-      case 'Last Week':
-        startDate = DateTime(now.year, now.month, now.day - 7);
-        endDate = now;
-        break;
-      case 'Last Month':
-        startDate = DateTime(now.year, now.month - 1, now.day);
-        endDate = now;
-        break;
-      case 'Custom':
-        if (_customStartDate != null && _customEndDate != null) {
-          startDate = _customStartDate!;
-          endDate = _customEndDate!
-              .add(const Duration(days: 1))
-              .subtract(const Duration(milliseconds: 1));
-        }
-        break;
-      default: // 'All'
-        break;
-    }
-
-    // Date filter
-    if (startDate != null && endDate != null) {
-      query = query
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-    }
-
-    // Add ordering
-    return query.orderBy('timestamp', descending: true);
-  }
-
-  // Helper function to get user profile image URL
-  Future<String?> _getUserProfileImage(String? userId) async {
-    if (userId == null || userId.isEmpty) return null;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-
-      if (userDoc.exists) {
-        final userData = userDoc.data();
-        if (userData != null) {
-          return userData['profileImage'] as String?;
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching user profile image: $e');
-      return null;
-    }
-  }
-
-  // Keep the _getInitials helper as fallback
-  String _getInitials(String name) {
-    if (name.isEmpty) return 'NA';
-
-    final nameParts = name.split(' ');
-    if (nameParts.length >= 2) {
-      return '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase();
-    } else {
-      return name.substring(0, 1).toUpperCase();
-    }
-  }
-
-  // Verify image data is valid
-  bool _isValidImageData(Uint8List? data) {
-    if (data == null || data.isEmpty) {
-      return false;
-    }
-
-    // Check for common image format headers
-    if (data.length > 4) {
-      // Check for JPEG header (starts with FF D8 FF)
-      if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF) {
-        return true;
-      }
-
-      // Check for PNG header (starts with 89 50 4E 47)
-      if (data[0] == 0x89 &&
-          data[1] == 0x50 &&
-          data[2] == 0x4E &&
-          data[3] == 0x47) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Helper method to add image pages to PDF with fallback options
-  Future<void> _addImagePageToPdf(
-      pw.Document pdf, Map<String, dynamic> report, Uint8List imageData,
-      [pw.MemoryImage? logoImage]) async {
-    try {
-      // Create a new page for this image
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          build: (pw.Context context) {
-            // Try to create the image widget
-            pw.Widget imageWidget;
-            try {
-              final image = pw.MemoryImage(imageData);
-              imageWidget = pw.Image(image);
-            } catch (e) {
-              // Fallback to an error message
-              imageWidget = pw.Container(
-                height: 200,
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.red),
-                ),
-                padding: const pw.EdgeInsets.all(10),
-                child: pw.Center(
-                  child: pw.Text(
-                    'Image could not be displayed',
-                    style: const pw.TextStyle(color: PdfColors.red),
-                  ),
-                ),
-              );
-            }
-
-            // The page content with logo at top left and centered content
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Logo at top left with consistent size
-                if (logoImage != null)
-                  pw.Image(logoImage, width: 100, height: 50),
-                pw.SizedBox(height: 16),
-
-                // Row with title
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.center,
-                  children: [
-                    pw.Text(
-                      'Report Image: ${report['incidentType']}',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 8),
-
-                // Centered report details
-                pw.Center(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Text(
-                        'Reported by: ${report['userName']} on ${report['date']}',
-                        style: const pw.TextStyle(
-                          fontSize: 14,
-                          color: PdfColors.grey700,
-                        ),
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        'Location: ${report['location']}',
-                        style: const pw.TextStyle(
-                          fontSize: 14,
-                        ),
-                      ),
-                      pw.SizedBox(height: 16),
-                      pw.Container(
-                        height: 300,
-                        child: pw.Center(
-                          child: pw.Container(
-                            decoration: pw.BoxDecoration(
-                              border: pw.Border.all(
-                                color: PdfColors.grey300,
-                                width: 1,
-                              ),
-                            ),
-                            padding: const pw.EdgeInsets.all(8),
-                            child: imageWidget,
-                          ),
-                        ),
-                      ),
-                      pw.SizedBox(height: 16),
-                      pw.Text(
-                        'Description:',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        report['description'] ?? 'No description provided',
-                        style: const pw.TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+        },
       );
     } catch (e) {
-      // Silently handle errors in PDF image page generation
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

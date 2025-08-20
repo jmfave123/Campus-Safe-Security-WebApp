@@ -95,6 +95,7 @@ class NotifServices {
     required String userId,
     required String heading,
     required String content,
+    String? bigPicture,
   }) async {
     try {
       // Create the notification content with filters targeting the specific userId
@@ -106,6 +107,11 @@ class NotifServices {
           {"field": "tag", "key": "userId", "relation": "=", "value": userId}
         ],
       };
+
+      // Add big picture if provided
+      if (bigPicture != null && bigPicture.isNotEmpty) {
+        notification["big_picture"] = bigPicture;
+      }
       // Send the notification through HTTP request
       final response = await http.post(
         Uri.parse(_onesignalUrl),

@@ -80,7 +80,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
       await NotifServices.sendGroupNotification(
         userType: userType,
         heading:
-            "Security Alert", // Using a direct string instead of undefined method
+            "Security Announcement", // Using a direct string instead of undefined method
         content: message,
       );
 
@@ -198,7 +198,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                         ),
                         const SizedBox(width: 12),
                         const Text(
-                          'Confirm Alert',
+                          'Confirm Announcement',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -263,7 +263,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                               fontSize: 16,
                             ),
                           ),
-                          child: const Text('Send Alert'),
+                          child: const Text('Send Announcement'),
                         ),
                       ],
                     ),
@@ -321,11 +321,11 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      'Alert Sent Successfully',
+                      'Announcement Sent Successfully',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey,
+                        color: Colors.green,
                       ),
                     ),
                   ],
@@ -1222,7 +1222,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                 ),
                 trailing: IconButton(
                   icon: Icon(Icons.edit_outlined, color: Colors.blue.shade600),
-                  tooltip: 'Edit Alert',
+                  tooltip: 'Edit Announcement',
                   onPressed: () async {
                     final docId = alerts[index].id;
                     final bool? success =
@@ -1230,7 +1230,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     if (success == true && mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Alert updated successfully')),
+                            content: Text('Announcement updated successfully')),
                       );
                     }
                   },
@@ -1447,7 +1447,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                   DropdownButtonFormField<AlertTarget>(
                     value: selectedTarget,
                     decoration: InputDecoration(
-                      labelText: 'Alert Target',
+                      labelText: 'Announcement Target',
                       labelStyle: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.w500,
@@ -1515,8 +1515,8 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                     controller: editController,
                     maxLines: 5,
                     decoration: InputDecoration(
-                      labelText: 'Alert Message',
-                      hintText: 'Edit alert message...',
+                      labelText: 'Announcement Message',
+                      hintText: 'Edit announcement message...',
                       labelStyle: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.w500,
@@ -1642,8 +1642,8 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           if (editController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content:
-                                      Text('Alert message cannot be empty')),
+                                  content: Text(
+                                      'Announcement message cannot be empty')),
                             );
                             return;
                           }
@@ -1980,7 +1980,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                   child: pw.Column(
                     children: [
                       pw.Text(
-                        'Campus Safety Alerts Report',
+                        'Campus Safety Announcements Report',
                         style: pw.TextStyle(
                             fontSize: 24, fontWeight: pw.FontWeight.bold),
                         textAlign: pw.TextAlign.center,
@@ -2051,7 +2051,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                       // Logo at the top left
                       pw.Image(logoImage, width: 100, height: 50),
                       pw.Text(
-                        'Campus Safety Alerts - Details',
+                        'Campus Safety Announcements - Details',
                         style: pw.TextStyle(
                           fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
@@ -2082,7 +2082,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                   color: PdfColors.black,
                 ),
                 cellPadding: const pw.EdgeInsets.all(5),
-                headers: ['Alert Message', 'Date', 'Target', 'Status'],
+                headers: ['Announcement Message', 'Date', 'Target', 'Status'],
                 data: alertsData.map((alert) {
                   return [
                     alert['message'],
