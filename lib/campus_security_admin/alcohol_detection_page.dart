@@ -5,12 +5,8 @@ import '../widgets/skeleton_loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
-import 'dart:html' as html;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:typed_data';
-import 'package:flutter/services.dart';
+import '../services/alcohol_detection_services.dart';
+import '../reusable_widget.dart';
 
 class AlcoholDetectionPage extends StatefulWidget {
   const AlcoholDetectionPage({super.key});
@@ -23,13 +19,6 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   String _selectedDateFilter = "Today";
   DateTime? _customStartDate;
   DateTime? _customEndDate;
-
-  // Status constants for consistency
-  static const String statusActive = 'active';
-  static const String statusInactive = 'inactive';
-  static const String statusResolved = 'resolved';
-  static const String statusCompleted = 'completed';
-  static const String statusPending = 'pending';
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +139,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           stream: _getFilteredDetectionsStream(countOnly: true),
           icon: Icons.warning_amber_rounded,
           color: const Color(0xFFFF9800),
-          statusFilter: statusActive,
+          statusFilter: AlcoholDetectionService.statusActive,
         ),
         const SizedBox(width: 16),
         _buildStatCard(
@@ -158,7 +147,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           stream: _getFilteredDetectionsStream(countOnly: true),
           icon: Icons.check_circle_outline,
           color: const Color(0xFF0F9D58),
-          statusFilter: statusResolved,
+          statusFilter: AlcoholDetectionService.statusResolved,
         ),
       ],
     );
@@ -251,28 +240,34 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   Widget _buildDateFilterButton() {
     return Container(
       decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF1A1851).withOpacity(0.3), // kPrimaryColor
+        ),
       ),
       child: PopupMenuButton<String>(
         tooltip: 'Filter by date',
-        onSelected: (String value) {
-          setState(() {
-            _selectedDateFilter = value;
-            if (value != 'Custom') {
+        onSelected: (String value) async {
+          // Apply selection immediately for non-custom options
+          if (value != 'Custom') {
+            setState(() {
+              _selectedDateFilter = value;
               _customStartDate = null;
               _customEndDate = null;
-            }
-          });
-          if (value == 'Custom') {
-            _showDateRangePicker();
+            });
+            return;
+          }
+
+          // For Custom: open the shared compact date-range picker from reusable_widget.dart
+          final result = await showCustomDateRangePicker(context);
+          if (result != null &&
+              result.containsKey('start') &&
+              result.containsKey('end')) {
+            setState(() {
+              _selectedDateFilter = 'Custom';
+              _customStartDate = result['start'] as DateTime?;
+              _customEndDate = result['end'] as DateTime?;
+            });
           }
         },
         offset: const Offset(0, 40),
@@ -280,69 +275,89 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           borderRadius: BorderRadius.circular(12),
         ),
         elevation: 4,
-        itemBuilder: (BuildContext context) => [
-          _buildPopupMenuItem('Today', Icons.today),
-          _buildPopupMenuItem('Yesterday', Icons.history),
-          _buildPopupMenuItem('Last Week', Icons.date_range),
-          _buildPopupMenuItem('Last Month', Icons.calendar_month),
-          _buildPopupMenuItem('All', Icons.all_inclusive),
-          _buildPopupMenuItem('Custom', Icons.calendar_today),
-        ],
+        itemBuilder: (BuildContext context) {
+          final options = [
+            {'value': 'Today', 'icon': Icons.today},
+            {'value': 'Yesterday', 'icon': Icons.history},
+            {'value': 'Last Week', 'icon': Icons.date_range},
+            {'value': 'Last Month', 'icon': Icons.calendar_month},
+            {'value': 'All', 'icon': Icons.all_inclusive},
+            {'value': 'Custom', 'icon': Icons.calendar_today},
+          ];
+
+          return options.map((option) {
+            final isSelected = _selectedDateFilter == option['value'];
+            return PopupMenuItem<String>(
+              value: option['value'] as String,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF1A1851)
+                          .withOpacity(0.1) // kPrimaryColor
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      option['icon'] as IconData,
+                      size: 18,
+                      color: isSelected
+                          ? const Color(0xFF1A1851) // kPrimaryColor
+                          : Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      option['value'] as String,
+                      style: TextStyle(
+                        color: isSelected
+                            ? const Color(0xFF1A1851) // kPrimaryColor
+                            : Colors.grey.shade600,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList();
+        },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue, Colors.blue.shade700],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.filter_list, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.filter_list,
+                size: 18,
+                color: const Color(0xFF1A1851), // kPrimaryColor
+              ),
+              const SizedBox(width: 4),
               Text(
-                'Filter: $_selectedDateFilter',
+                _selectedDateFilter,
                 style: const TextStyle(
-                  color: Colors.white,
+                  fontSize: 12,
+                  color: Color(0xFF1A1851), // kPrimaryColor
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+              Icon(
+                Icons.arrow_drop_down,
+                size: 18,
+                color: const Color(0xFF1A1851), // kPrimaryColor
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _buildPopupMenuItem(String value, IconData icon) {
-    final isSelected = _selectedDateFilter == value;
-    return PopupMenuItem<String>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isSelected ? Colors.blue : Colors.grey.shade700,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.blue : Colors.black,
-            ),
-          ),
-          if (isSelected) ...[
-            const Spacer(),
-            const Icon(Icons.check, size: 16, color: Colors.blue),
-          ],
-        ],
       ),
     );
   }
@@ -409,21 +424,34 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                 if (snapshot.data != null) {
                   if (statusFilter != null) {
                     // Apply date filtering first
-                    final dateRange = _getDateRangeForFilter();
-                    final filteredDocs = _filterDetectionsByDateRange(
-                        snapshot.data!.docs, dateRange);
+                    final dateRange =
+                        AlcoholDetectionService.getDateRangeForFilter(
+                      _selectedDateFilter,
+                      customStartDate: _customStartDate,
+                      customEndDate: _customEndDate,
+                    );
+                    final filteredDocs =
+                        AlcoholDetectionService.filterDetectionsByDateRange(
+                            snapshot.data!.docs, dateRange);
 
                     // Then filter by status
                     count = filteredDocs.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
-                      final status = data['status'] as String? ?? statusActive;
+                      final status = data['status'] as String? ??
+                          AlcoholDetectionService.statusActive;
                       return status == statusFilter;
                     }).length;
                   } else {
                     // For total count, just apply date filtering
-                    final dateRange = _getDateRangeForFilter();
-                    final filteredDocs = _filterDetectionsByDateRange(
-                        snapshot.data!.docs, dateRange);
+                    final dateRange =
+                        AlcoholDetectionService.getDateRangeForFilter(
+                      _selectedDateFilter,
+                      customStartDate: _customStartDate,
+                      customEndDate: _customEndDate,
+                    );
+                    final filteredDocs =
+                        AlcoholDetectionService.filterDetectionsByDateRange(
+                            snapshot.data!.docs, dateRange);
                     count = filteredDocs.length;
                   }
                 }
@@ -474,9 +502,13 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         }
 
         // Apply client-side filtering
-        final dateRange = _getDateRangeForFilter();
-        final detections =
-            _filterDetectionsByDateRange(snapshot.data?.docs ?? [], dateRange);
+        final dateRange = AlcoholDetectionService.getDateRangeForFilter(
+          _selectedDateFilter,
+          customStartDate: _customStartDate,
+          customEndDate: _customEndDate,
+        );
+        final detections = AlcoholDetectionService.filterDetectionsByDateRange(
+            snapshot.data?.docs ?? [], dateRange);
 
         if (detections.isEmpty) {
           return _buildEmptyState();
@@ -642,12 +674,14 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         _buildDataCell(Icons.school, data['studentCourse'] ?? 'N/A'),
         _buildDataCell(Icons.access_time, formattedDate),
         _buildDataCell(Icons.speed, '${data['bac'] ?? 'N/A'}'),
-        DataCell(_buildStatusChip(data['status'] ?? statusActive)),
+        DataCell(_buildStatusChip(
+            data['status'] ?? AlcoholDetectionService.statusActive)),
         DataCell(
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatusToggle(doc.id, data['status'] ?? statusActive),
+              _buildStatusToggle(doc.id,
+                  data['status'] ?? AlcoholDetectionService.statusActive),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.visibility, size: 20),
@@ -718,13 +752,15 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   }
 
   Widget _buildStatusToggle(String docId, String currentStatus) {
-    final bool isActive =
-        currentStatus == statusActive || currentStatus == statusResolved;
+    // Only "resolved" status should show the toggle as ON
+    // "active" and "inactive" should show toggle as OFF, so they can be marked as resolved
+    final bool isResolved =
+        currentStatus == AlcoholDetectionService.statusResolved;
 
     return Tooltip(
-      message: isActive ? 'Set Inactive' : 'Set Active',
+      message: isResolved ? 'Mark as Active' : 'Mark as Resolved',
       child: Switch(
-        value: isActive,
+        value: isResolved,
         activeColor: Colors.green,
         activeTrackColor: Colors.green.shade100,
         inactiveThumbColor: Colors.grey,
@@ -734,21 +770,23 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  Future<void> _updateDetectionStatus(String docId, bool isActive) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .doc(docId)
-          .update({'status': isActive ? statusActive : 'inactive'});
+  Future<void> _updateDetectionStatus(String docId, bool markAsResolved) async {
+    final success = await AlcoholDetectionService.updateDetectionStatus(
+        docId, markAsResolved);
 
-      if (mounted) {
+    if (mounted) {
+      if (success) {
+        final message = markAsResolved
+            ? 'Detection marked as resolved successfully'
+            : 'Detection marked as active successfully';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 22),
-                SizedBox(width: 12),
-                Text('Status updated successfully'),
+                const Icon(Icons.check_circle, color: Colors.white, size: 22),
+                const SizedBox(width: 12),
+                Text(message),
               ],
             ),
             backgroundColor: Colors.green.shade600,
@@ -759,16 +797,14 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
             duration: const Duration(seconds: 2),
           ),
         );
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Failed to update status: $e')),
+                Icon(Icons.error_outline, color: Colors.white, size: 22),
+                SizedBox(width: 12),
+                Text('Failed to update status'),
               ],
             ),
             backgroundColor: Colors.red.shade600,
@@ -1076,7 +1112,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18)),
               child: Container(
-                width: 360, // Constrain dialog width
+                width: 360,
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1179,153 +1215,51 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
       );
 
       // Get detection data
-      final dateRange = _getDateRangeForFilter();
+      final dateRange = AlcoholDetectionService.getDateRangeForFilter(
+        _selectedDateFilter,
+        customStartDate: _customStartDate,
+        customEndDate: _customEndDate,
+      );
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('alcohol_detection_data')
           .orderBy('timestamp', descending: true)
           .get();
 
       // Filter by date range if needed
-      final detections = _filterDetectionsByDateRange(snapshot.docs, dateRange);
+      final detections = AlcoholDetectionService.filterDetectionsByDateRange(
+          snapshot.docs, dateRange);
 
-      // Load the logo image
-      final ByteData logoData = await rootBundle.load('assets/ustpLogo.png');
-      final Uint8List logoBytes = logoData.buffer.asUint8List();
-      final logoImage = pw.MemoryImage(logoBytes);
-
-      // Create PDF document
-      final pdf = pw.Document();
-
-      // Add title page
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Add logo image at the top left
-                pw.Image(logoImage, width: 200, height: 100),
-                pw.SizedBox(height: 20),
-                pw.Center(
-                  child: pw.Column(
-                    children: [
-                      pw.Text('Alcohol Detection Report',
-                          style: pw.TextStyle(
-                              fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 20),
-                      pw.Text(
-                          'Date Range: ${_formatDateRangeForReport(dateRange)}',
-                          style: const pw.TextStyle(fontSize: 16)),
-                      pw.SizedBox(height: 10),
-                      pw.Text(
-                          'Generated on: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-                          style: const pw.TextStyle(fontSize: 14)),
-                      pw.SizedBox(height: 40),
-                      pw.Text('Total Detections: ${detections.length}',
-                          style: const pw.TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+      // Generate PDF using service
+      final success = await AlcoholDetectionService.generatePdfReport(
+        detections: detections,
+        dateRange: dateRange,
       );
-
-      // Add statistics page
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            // Count statuses
-            int activeCount = 0;
-            int resolvedCount = 0;
-            int otherCount = 0;
-
-            for (var doc in detections) {
-              final data = doc.data() as Map<String, dynamic>;
-              final status = data['status'] as String? ?? statusActive;
-
-              if (status == statusActive) {
-                activeCount++;
-              } else if (status == statusResolved) {
-                resolvedCount++;
-              } else {
-                otherCount++;
-              }
-            }
-
-            return pw.Padding(
-              padding: const pw.EdgeInsets.all(20),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // Add logo at the top left
-                  pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Image(logoImage, width: 100, height: 50),
-                        pw.Text('Detection Statistics',
-                            style: pw.TextStyle(
-                                fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                      ]),
-                  pw.SizedBox(height: 20),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildPdfStatBox('Total', detections.length.toString()),
-                      _buildPdfStatBox('Active', activeCount.toString()),
-                      _buildPdfStatBox('Resolved', resolvedCount.toString()),
-                    ],
-                  ),
-                  pw.SizedBox(height: 40),
-                  pw.Text('Detection Details',
-                      style: pw.TextStyle(
-                          fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 10),
-                  _buildPdfDetectionTable(detections),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-
-      // Save the PDF
-      final Uint8List pdfBytes = await pdf.save();
-
-      // Download the PDF (for web)
-      if (kIsWeb) {
-        final blob = html.Blob([pdfBytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', 'alcohol_detection_report.pdf')
-          ..click();
-        html.Url.revokeObjectUrl(url);
-      }
 
       // Close loading dialog
       Navigator.of(context).pop();
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white, size: 22),
-              SizedBox(width: 12),
-              Text('Report generated successfully'),
-            ],
+      if (success) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 22),
+                SizedBox(width: 12),
+                Text('Report generated successfully'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(10),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(10),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      } else {
+        throw Exception('Failed to generate PDF report');
+      }
     } catch (e) {
       // Close loading dialog
       Navigator.of(context).pop();
@@ -1359,6 +1293,12 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     return '${DateFormat('dd/MM/yyyy').format(range.start)} - ${DateFormat('dd/MM/yyyy').format(range.end)}';
   }
 
+  // Helper method to format date
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
   // Modern confirmation dialog that matches app aesthetic
   Future<bool?> _showReportConfirmationDialog(int detectionCount) {
     return showDialog<bool>(
@@ -1367,7 +1307,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         backgroundColor: Colors.white,
         child: Container(
-          width: 400, // Constrain dialog width
+          width: 400,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1432,204 +1372,21 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  // Helper method to format date
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'N/A';
-    return DateFormat('dd/MM/yyyy').format(date);
-  }
-
-  // Helper method to build PDF stat box
-  pw.Widget _buildPdfStatBox(String title, String value) {
-    return pw.Container(
-      width: 150,
-      padding: const pw.EdgeInsets.all(15),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text(title, style: const pw.TextStyle(fontSize: 14)),
-          pw.SizedBox(height: 8),
-          pw.Text(value,
-              style:
-                  pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  // Helper method to build PDF detection table
-  pw.Widget _buildPdfDetectionTable(List<QueryDocumentSnapshot> detections) {
-    // Table headers
-    final headers = [
-      'Student Name',
-      'Student ID',
-      'Course',
-      'Detection Time',
-      'BAC',
-      'Status'
-    ];
-
-    // Table data
-    final data = detections.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['timestamp'] as Timestamp?;
-      final formattedDate = timestamp != null
-          ? DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate())
-          : 'Unknown';
-
-      return [
-        data['studentName'] ?? 'N/A',
-        data['studentId'] ?? 'N/A',
-        data['studentCourse'] ?? 'N/A',
-        formattedDate,
-        '${data['bac'] ?? 'N/A'}',
-        data['status'] ?? statusActive,
-      ];
-    }).toList();
-
-    return pw.Table.fromTextArray(
-      headers: headers,
-      data: data,
-      border: null,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(
-        color: PdfColors.grey200,
-      ),
-      cellHeight: 30,
-      cellAlignments: {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.centerLeft,
-        2: pw.Alignment.centerLeft,
-        3: pw.Alignment.center,
-        4: pw.Alignment.center,
-        5: pw.Alignment.center,
-      },
-    );
-  }
-
-  // Simplified, optimized query method
+  // Simplified, optimized query method using service
   Stream<QuerySnapshot> _getFilteredDetectionsStream({
     String? status,
     bool countOnly = false,
   }) {
-    try {
-      // Build query with consistent structure to avoid Firestore errors
-      Query query = FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .orderBy('timestamp', descending: true);
+    final dateRange = AlcoholDetectionService.getDateRangeForFilter(
+      _selectedDateFilter,
+      customStartDate: _customStartDate,
+      customEndDate: _customEndDate,
+    );
 
-      // Apply status filter if provided
-      if (status != null) {
-        query = query.where('status', isEqualTo: status);
-      }
-
-      // Get date constraints
-      final dateRange = _getDateRangeForFilter();
-
-      // Apply date range filters to the query (not client-side)
-      if (!dateRange.useAll) {
-        // Apply both start and end date filters to the query
-        query = query
-            .where('timestamp',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(dateRange.start))
-            .where('timestamp',
-                isLessThanOrEqualTo: Timestamp.fromDate(dateRange.end));
-      }
-
-      return query.limit(countOnly ? 100 : 50).snapshots();
-    } catch (e) {
-      print('Error in _getFilteredDetectionsStream: $e');
-      // Return an empty stream on error
-      return FirebaseFirestore.instance
-          .collection('alcohol_detection_data')
-          .limit(0)
-          .snapshots();
-    }
-  }
-
-  // Simplified date range helper
-  DateRange _getDateRangeForFilter() {
-    final now = DateTime.now();
-
-    try {
-      switch (_selectedDateFilter) {
-        case 'Today':
-          return DateRange(
-            DateTime(now.year, now.month, now.day, 0, 0,
-                0), // Start of today (midnight)
-            DateTime(now.year, now.month, now.day, 23, 59, 59), // End of today
-          );
-        case 'Yesterday':
-          final yesterday = DateTime(now.year, now.month, now.day - 1);
-          return DateRange(
-            DateTime(yesterday.year, yesterday.month, yesterday.day, 0, 0,
-                0), // Start of yesterday
-            DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59,
-                59), // End of yesterday
-          );
-        case 'Last Week':
-          return DateRange(
-            DateTime(now.year, now.month, now.day - 7, 0, 0, 0), // 7 days ago
-            DateTime(now.year, now.month, now.day, 23, 59, 59), // End of today
-          );
-        case 'Last Month':
-          // Handle edge cases for different month lengths
-          DateTime oneMonthAgo;
-          try {
-            oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
-          } catch (e) {
-            oneMonthAgo = DateTime(now.year, now.month - 1, 1);
-          }
-          return DateRange(
-            DateTime(
-                oneMonthAgo.year, oneMonthAgo.month, oneMonthAgo.day, 0, 0, 0),
-            DateTime(now.year, now.month, now.day, 23, 59, 59), // End of today
-          );
-        case 'Custom':
-          if (_customStartDate != null && _customEndDate != null) {
-            // Ensure full day coverage for custom dates
-            return DateRange(
-                DateTime(_customStartDate!.year, _customStartDate!.month,
-                    _customStartDate!.day, 0, 0, 0),
-                DateTime(_customEndDate!.year, _customEndDate!.month,
-                    _customEndDate!.day, 23, 59, 59));
-          }
-          return DateRange.all();
-        default: // 'All'
-          return DateRange.all();
-      }
-    } catch (e) {
-      print('Error creating date range: $e');
-      return DateRange.all();
-    }
-  }
-}
-
-// Clean, well-documented DateRange class
-class DateRange {
-  final DateTime start;
-  final DateTime end;
-  final bool useAll;
-
-  const DateRange._internal(this.start, this.end, this.useAll);
-
-  /// Creates a date range with validation
-  factory DateRange(DateTime start, DateTime end) {
-    // Ensure start date is before end date
-    if (start.isAfter(end)) {
-      throw ArgumentError('Start date must be before end date');
-    }
-    return DateRange._internal(start, end, false);
-  }
-
-  /// Creates a date range for all dates (no filtering)
-  factory DateRange.all() {
-    return DateRange._internal(
-      DateTime(2000), // Far past date
-      DateTime.now().add(const Duration(days: 1)), // Include today
-      true,
+    return AlcoholDetectionService.getFilteredDetectionsStream(
+      status: status,
+      countOnly: countOnly,
+      dateRange: dateRange,
     );
   }
 }

@@ -7,6 +7,11 @@ import 'package:campus_safe_app_admin_capstone/services/data_analytics_service.d
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+// USTP brand palette
+const Color kPrimaryColor = Color(0xFF1A1851); // was Colors.blue
+const Color kAccentColor =
+    Color(0xFFFBB215); // was Colors.amber / orange accents
+
 BoxDecoration boxDecoration(Color color, Color shadowColor, double spreadRadius,
     double blurRadius, Offset offset) {
   return BoxDecoration(
@@ -120,11 +125,15 @@ Widget buildNavItem(int index, String title, IconData icon,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          // color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          color:
+              isSelected ? kPrimaryColor.withOpacity(0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+            // color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+            color: isSelected
+                ? kPrimaryColor.withOpacity(0.22)
+                : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -133,15 +142,17 @@ Widget buildNavItem(int index, String title, IconData icon,
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
+                // color: isSelected ? Colors.blue.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
                 color: isSelected
-                    ? Colors.blue.withOpacity(0.2)
+                    ? kPrimaryColor.withOpacity(0.18)
                     : Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 size: 18,
-                color: isSelected ? Colors.blue : Colors.grey[700],
+                // color: isSelected ? Colors.blue : Colors.grey[700],
+                color: isSelected ? kPrimaryColor : Colors.grey[700],
               ),
             ),
             const SizedBox(width: 10),
@@ -150,7 +161,8 @@ Widget buildNavItem(int index, String title, IconData icon,
                 title,
                 style: TextStyle(
                   fontSize: 13,
-                  color: isSelected ? Colors.blue : Colors.grey[700],
+                  // color: isSelected ? Colors.blue : Colors.grey[700],
+                  color: isSelected ? kPrimaryColor : Colors.grey[700],
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
                 maxLines: 2,
@@ -180,12 +192,13 @@ Widget buildNotificationItem({
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
+        // gradient: isRead ? null : LinearGradient(colors: [Colors.blue.shade50.withOpacity(0.4), Colors.white]),
         gradient: isRead
             ? null
             : LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [Colors.blue.shade50.withOpacity(0.4), Colors.white],
+                colors: [kPrimaryColor.withOpacity(0.06), Colors.white],
               ),
       ),
       child: Row(
@@ -233,8 +246,12 @@ Widget buildNotificationItem({
               width: 10,
               height: 10,
               decoration: BoxDecoration(
+                // gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade700]),
                 gradient: LinearGradient(
-                  colors: [Colors.blue.shade400, Colors.blue.shade700],
+                  colors: [
+                    kPrimaryColor.withOpacity(0.6),
+                    kPrimaryColor.withOpacity(0.95)
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -364,7 +381,8 @@ Widget buildIncidentTypeIcon(String incidentType) {
       iconData = Icons.visibility;
       break;
     default:
-      backgroundColor = Colors.blue;
+      // backgroundColor = Colors.blue;
+      backgroundColor = kPrimaryColor;
       iconData = Icons.report_problem;
   }
 
@@ -396,7 +414,8 @@ Widget buildNotificationHeader({
             Container(
               padding: const EdgeInsets.all(8),
               decoration: const BoxDecoration(
-                color: Colors.blue,
+                // color: Colors.blue,
+                color: kPrimaryColor,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -423,7 +442,8 @@ Widget buildNotificationHeader({
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 visualDensity: VisualDensity.compact,
-                foregroundColor: Colors.blue,
+                // foregroundColor: Colors.blue,
+                foregroundColor: kPrimaryColor,
               ),
               child: const Text('Mark all as read'),
             ),
@@ -450,7 +470,8 @@ Widget buildNotificationActionButton({
     style: TextButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       foregroundColor: Colors.white,
-      backgroundColor: Colors.blue,
+      // backgroundColor: Colors.blue,
+      backgroundColor: kPrimaryColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -489,7 +510,8 @@ Widget buildSuccessDialog({
   int delayMilliseconds = 300,
 }) {
   if (gradientColors == null || gradientColors.isEmpty) {
-    gradientColors = [Colors.blue.shade400, Colors.blue.shade700];
+    // gradientColors = [Colors.blue.shade400, Colors.blue.shade700];
+    gradientColors = [kPrimaryColor.withOpacity(0.6), kPrimaryColor];
   }
 
   Future.delayed(Duration(milliseconds: delayMilliseconds), () {
@@ -516,7 +538,8 @@ Widget buildSuccessDialog({
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.shade200.withOpacity(0.5),
+                    // color: Colors.blue.shade200.withOpacity(0.5),
+                    color: kPrimaryColor.withOpacity(0.18),
                     spreadRadius: 5,
                     blurRadius: 7,
                     offset: const Offset(0, 3),
@@ -657,7 +680,8 @@ Widget buildStatusChip(String status) {
       statusIcon = Icons.pending;
       break;
     case 'in progress':
-      chipColor = Colors.blue;
+      // chipColor = Colors.blue;
+      chipColor = kPrimaryColor;
       statusIcon = Icons.sync;
       break;
     case 'false information':
@@ -712,13 +736,15 @@ Widget buildInfoTile({
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            // previous: color: Colors.blue.withOpacity(0.1),
+            color: kPrimaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
             size: 20,
-            color: Colors.blue,
+            // previous: color: Colors.blue,
+            color: kPrimaryColor,
           ),
         ),
         const SizedBox(width: 12),
@@ -760,7 +786,7 @@ Widget buildDateFilterButton({
     decoration: BoxDecoration(
       boxShadow: [
         BoxShadow(
-          color: Colors.blue.withOpacity(0.2),
+          color: kPrimaryColor.withOpacity(0.2),
           spreadRadius: 1,
           blurRadius: 4,
           offset: const Offset(0, 2),
@@ -802,7 +828,7 @@ Widget buildDateFilterButton({
                 Icon(
                   option['icon'] as IconData,
                   size: 20,
-                  color: isSelected ? Colors.blue : Colors.grey.shade700,
+                  color: isSelected ? kPrimaryColor : Colors.grey.shade700,
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -810,12 +836,13 @@ Widget buildDateFilterButton({
                   style: TextStyle(
                     fontWeight:
                         isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? Colors.blue : Colors.black,
+                    color: isSelected ? kPrimaryColor : Colors.black,
                   ),
                 ),
                 if (isSelected) ...[
                   const Spacer(),
-                  const Icon(Icons.check, size: 16, color: Colors.blue),
+                  // const Icon(Icons.check, size: 16, color: Colors.blue),
+                  const Icon(Icons.check, size: 16, color: Color(0xFF1A1851)),
                 ],
               ],
             ),
@@ -826,7 +853,7 @@ Widget buildDateFilterButton({
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue, Colors.blue.shade700],
+            colors: [kPrimaryColor, kPrimaryColor.withOpacity(0.9)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -879,13 +906,15 @@ Widget buildReportsAnalysisWidget({
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    // color: Colors.blue.withOpacity(0.1),
+                    color: kPrimaryColor.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
                     size: 22,
-                    color: Colors.blue,
+                    // color: Colors.blue,
+                    color: kPrimaryColor,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -915,11 +944,13 @@ Widget buildReportsAnalysisWidget({
                 icon: const Icon(Icons.arrow_forward, size: 16),
                 label: Text(buttonText),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.blue,
+                  // previous: foregroundColor: Colors.blue,
+                  foregroundColor: kPrimaryColor,
                   backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(color: Colors.blue.shade100),
+                    // previous: side: BorderSide(color: Colors.blue.shade100),
+                    side: BorderSide(color: kPrimaryColor.withOpacity(0.15)),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -1586,11 +1617,12 @@ Future<BackupFormat?> showFormatSelectionDialog(BuildContext context) async {
       ),
       backgroundColor: Colors.white,
       elevation: 8.0,
-      title: Row(
+      title: const Row(
         children: [
-          Icon(Icons.backup_table_rounded, color: Colors.blue.shade700),
-          const SizedBox(width: 12),
-          const Text(
+          // previous: Icon(Icons.backup_table_rounded, color: Colors.blue.shade700),
+          Icon(Icons.backup_table_rounded, color: kPrimaryColor),
+          SizedBox(width: 12),
+          Text(
             'Select Backup Format',
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -1668,6 +1700,1057 @@ Widget buildFormatOption(
         borderRadius: BorderRadius.circular(12),
       ),
       hoverColor: color.withOpacity(0.05),
+    ),
+  );
+}
+
+/// Builds a pie chart widget for user type distribution
+Widget buildUserTypePieChart(Map<String, int> userTypeCounts) {
+  final List<Color> colors = [
+    kPrimaryColor,
+    kAccentColor,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+  ];
+
+  final total = userTypeCounts.values.fold(0, (sum, count) => sum + count);
+
+  if (total == 0) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'No users data available',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+    );
+  }
+
+  final List<PieChartSectionData> sections = [];
+  int colorIndex = 0;
+
+  userTypeCounts.forEach((userType, count) {
+    final percentage = (count / total * 100);
+    sections.add(
+      PieChartSectionData(
+        color: colors[colorIndex % colors.length],
+        value: count.toDouble(),
+        title: '${percentage.toStringAsFixed(1)}%',
+        radius: 60,
+        titleStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+    colorIndex++;
+  });
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.pie_chart,
+                  color: kPrimaryColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'User Distribution',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: kPrimaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: PieChart(
+                    PieChartData(
+                      sections: sections,
+                      borderData: FlBorderData(show: false),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: userTypeCounts.entries.map((entry) {
+                      final color = colors[
+                          userTypeCounts.keys.toList().indexOf(entry.key) %
+                              colors.length];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${entry.key}: ${entry.value}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Total Users: $total',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Builds an enhanced user type pie chart with date filtering
+Widget buildFilterableUserTypePieChart({
+  required Map<String, int> userTypeCounts,
+  required String selectedFilter,
+  required Function(String) onFilterChanged,
+  required VoidCallback onCustomDatePressed,
+}) {
+  final List<Color> colors = [
+    kPrimaryColor,
+    kAccentColor,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+  ];
+
+  final total = userTypeCounts.values.fold(0, (sum, count) => sum + count);
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with filter button
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.pie_chart,
+                  color: kPrimaryColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'User Distribution',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kPrimaryColor,
+                  ),
+                ),
+              ),
+              // Filter button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: kPrimaryColor.withOpacity(0.3),
+                  ),
+                ),
+                child: PopupMenuButton<String>(
+                  onSelected: (String value) {
+                    if (value == 'Custom') {
+                      onCustomDatePressed();
+                    } else {
+                      onFilterChanged(value);
+                    }
+                  },
+                  offset: const Offset(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                  itemBuilder: (BuildContext context) {
+                    final options = [
+                      {'value': 'Today', 'icon': Icons.today},
+                      {'value': 'Yesterday', 'icon': Icons.history},
+                      {'value': 'Last Week', 'icon': Icons.date_range},
+                      {'value': 'Last Month', 'icon': Icons.calendar_month},
+                      {'value': 'All', 'icon': Icons.all_inclusive},
+                      {'value': 'Custom', 'icon': Icons.calendar_today},
+                    ];
+
+                    return options.map((option) {
+                      final isSelected = selectedFilter == option['value'];
+                      return PopupMenuItem<String>(
+                        value: option['value'] as String,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? kPrimaryColor.withOpacity(0.1)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                option['icon'] as IconData,
+                                size: 18,
+                                color: isSelected
+                                    ? kPrimaryColor
+                                    : Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                option['value'] as String,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? kPrimaryColor
+                                      : Colors.grey.shade600,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.filter_list,
+                          size: 18,
+                          color: kPrimaryColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          selectedFilter,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: kPrimaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: kPrimaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Chart content
+          if (total == 0)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'No users data available for selected period',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sections: userTypeCounts.entries.map((entry) {
+                          final colorIndex =
+                              userTypeCounts.keys.toList().indexOf(entry.key);
+                          final percentage = (entry.value / total * 100);
+                          return PieChartSectionData(
+                            color: colors[colorIndex % colors.length],
+                            value: entry.value.toDouble(),
+                            title: '${percentage.toStringAsFixed(1)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          );
+                        }).toList(),
+                        borderData: FlBorderData(show: false),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 25,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: userTypeCounts.entries.map((entry) {
+                        final colorIndex =
+                            userTypeCounts.keys.toList().indexOf(entry.key);
+                        final color = colors[colorIndex % colors.length];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${entry.key}: ${entry.value}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 8),
+          Text(
+            'Total Users: $total',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Builds a pie chart widget for incident type distribution
+Widget buildIncidentTypePieChart(Map<String, int> incidentTypeCounts) {
+  final Map<String, Color> incidentColors = {
+    'Drunk Person': Colors.purple,
+    'Theft': Colors.red.shade700,
+    'Vandalism': Colors.red,
+    'Fighting': Colors.orange,
+    'Suspicious Activity': Colors.amber,
+    'Harassment': Colors.deepPurple,
+    'Others': Colors.grey,
+  };
+
+  final total = incidentTypeCounts.values.fold(0, (sum, count) => sum + count);
+
+  if (total == 0) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'No incident data available',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+    );
+  }
+
+  final List<PieChartSectionData> sections = [];
+
+  incidentTypeCounts.forEach((incidentType, count) {
+    final percentage = (count / total * 100);
+    final color = incidentColors[incidentType] ?? Colors.grey;
+    sections.add(
+      PieChartSectionData(
+        color: color,
+        value: count.toDouble(),
+        title: '${percentage.toStringAsFixed(1)}%',
+        radius: 60,
+        titleStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  });
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.report_problem,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Incident Types',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: PieChart(
+                    PieChartData(
+                      sections: sections,
+                      borderData: FlBorderData(show: false),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: incidentTypeCounts.entries.map((entry) {
+                      final color = incidentColors[entry.key] ?? Colors.grey;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${entry.key}: ${entry.value}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Total Reports: $total',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Builds an enhanced incident type pie chart with date filtering
+Widget buildFilterableIncidentTypePieChart({
+  required Map<String, int> incidentTypeCounts,
+  required String selectedFilter,
+  required Function(String) onFilterChanged,
+  required VoidCallback onCustomDatePressed,
+}) {
+  final Map<String, Color> incidentColors = {
+    'Drunk Person': Colors.purple,
+    'Theft': Colors.red.shade700,
+    'Vandalism': Colors.red,
+    'Fighting': Colors.orange,
+    'Suspicious Activity': Colors.amber,
+    'Harassment': Colors.deepPurple,
+    'Others': Colors.grey,
+  };
+
+  final total = incidentTypeCounts.values.fold(0, (sum, count) => sum + count);
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with filter dropdown
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.report_problem,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Incident Types',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              // Filter button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: kPrimaryColor.withOpacity(0.3),
+                  ),
+                ),
+                child: PopupMenuButton<String>(
+                  onSelected: (String value) {
+                    if (value == 'Custom') {
+                      onCustomDatePressed();
+                    } else {
+                      onFilterChanged(value);
+                    }
+                  },
+                  offset: const Offset(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                  itemBuilder: (BuildContext context) {
+                    final options = [
+                      {'value': 'Today', 'icon': Icons.today},
+                      {'value': 'Yesterday', 'icon': Icons.history},
+                      {'value': 'Last Week', 'icon': Icons.date_range},
+                      {'value': 'Last Month', 'icon': Icons.calendar_month},
+                      {'value': 'All', 'icon': Icons.all_inclusive},
+                      {'value': 'Custom', 'icon': Icons.calendar_today},
+                    ];
+
+                    return options.map((option) {
+                      final isSelected = selectedFilter == option['value'];
+                      return PopupMenuItem<String>(
+                        value: option['value'] as String,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? kPrimaryColor.withOpacity(0.1)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                option['icon'] as IconData,
+                                size: 18,
+                                color: isSelected
+                                    ? kPrimaryColor
+                                    : Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                option['value'] as String,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? kPrimaryColor
+                                      : Colors.grey.shade600,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.filter_list,
+                          size: 18,
+                          color: kPrimaryColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          selectedFilter,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: kPrimaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: kPrimaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Chart content
+          if (total == 0)
+            Expanded(
+              child: Center(
+                child: Text(
+                  'No incident data available for $selectedFilter',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sections: incidentTypeCounts.entries.map((entry) {
+                          final percentage = (entry.value / total * 100);
+                          final color =
+                              incidentColors[entry.key] ?? Colors.grey;
+                          return PieChartSectionData(
+                            color: color,
+                            value: entry.value.toDouble(),
+                            title: '${percentage.toStringAsFixed(1)}%',
+                            radius: 60,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          );
+                        }).toList(),
+                        borderData: FlBorderData(show: false),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 30,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: incidentTypeCounts.entries.map((entry) {
+                        final color = incidentColors[entry.key] ?? Colors.grey;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${entry.key}: ${entry.value}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            'Total Reports: $total (${selectedFilter})',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Shows a compact custom date range picker dialog
+Future<Map<String, DateTime?>?> showCustomDateRangePicker(
+    BuildContext context) async {
+  DateTime? startDate;
+  DateTime? endDate;
+
+  return await showDialog<Map<String, DateTime?>>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          width: 300,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.date_range,
+                    color: kPrimaryColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Select Date Range',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: kPrimaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Start Date
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.event, color: Colors.grey),
+                  title: Text(
+                    startDate != null
+                        ? 'Start: ${DateFormat('MMM dd, yyyy').format(startDate!)}'
+                        : 'Select Start Date',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: startDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.light(
+                              primary: kPrimaryColor,
+                              onPrimary: Colors.white,
+                              surface: Colors.white,
+                              onSurface: Colors.black,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (date != null) {
+                      setState(() {
+                        startDate = date;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // End Date
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.event, color: Colors.grey),
+                  title: Text(
+                    endDate != null
+                        ? 'End: ${DateFormat('MMM dd, yyyy').format(endDate!)}'
+                        : 'Select End Date',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: endDate ?? startDate ?? DateTime.now(),
+                      firstDate: startDate ?? DateTime(2020),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.light(
+                              primary: kPrimaryColor,
+                              onPrimary: Colors.white,
+                              surface: Colors.white,
+                              onSurface: Colors.black,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (date != null) {
+                      setState(() {
+                        endDate = date;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (startDate != null && endDate != null) {
+                        Navigator.of(context).pop({
+                          'startDate': startDate,
+                          'endDate': endDate,
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Apply'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }

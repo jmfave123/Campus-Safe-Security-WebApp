@@ -15,7 +15,8 @@ Widget reusableTextField({
   void Function(String)? onChanged,
   TextInputType? keyboardType,
 }) {
-  final Color themeColor = Colors.blue.shade600;
+  // final Color themeColor = Colors.blue.shade600;
+  const Color themeColor = Color(0xFF1A1851);
 
   return Theme(
     data: ThemeData(

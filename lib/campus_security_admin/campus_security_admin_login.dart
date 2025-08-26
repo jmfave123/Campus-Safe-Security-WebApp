@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
-
 import '../widgets/reusable_text_field.dart';
 import '../services/campus_security_admin_login_service.dart';
+
+// Palette: primary 0xFF1A1851 (deep indigo), accent 0xFFFBB215 (warm yellow)
+const Color kPrimaryColor = Color(0xFF1A1851);
+const Color kAccentColor = Color(0xFFFBB215);
+
+// Previous palette (commented out) — kept here in case you want to revert
+// final List<Color> _oldGradient = [Colors.blue.shade100, Colors.blue.shade300];
+// final Color _oldIconShadow = Colors.blue.shade800.withOpacity(0.2);
+// final Color _oldCardShadow = Colors.blue.shade800.withOpacity(0.15);
+// final Color _oldButton = Colors.blue.shade600;
+// final Color _oldButtonDisabled = Colors.blue.shade300;
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -74,14 +84,18 @@ class _LoginFormState extends State<LoginForm> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.blue.shade100, Colors.blue.shade300],
-            stops: const [0.3, 0.9],
-          ),
+        decoration: const BoxDecoration(
+          color: kPrimaryColor,
         ),
+        // Previous background (commented):
+        // decoration: BoxDecoration(
+        //   gradient: LinearGradient(
+        //     begin: Alignment.topLeft,
+        //     end: Alignment.bottomRight,
+        //     colors: [Colors.blue.shade100, Colors.blue.shade300],
+        //     stops: const [0.3, 0.9],
+        //   ),
+        // ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -117,16 +131,24 @@ class _LoginFormState extends State<LoginForm> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.blue.shade800.withOpacity(0.2),
+                                  color: kPrimaryColor.withOpacity(0.08),
                                   blurRadius: 15,
                                   spreadRadius: 2,
                                 ),
                               ],
+                              // Previous icon shadow (commented):
+                              // boxShadow: [
+                              //   BoxShadow(
+                              //     color: Colors.blue.shade800.withOpacity(0.2),
+                              //     blurRadius: 15,
+                              //     spreadRadius: 2,
+                              //   ),
+                              // ],
                             ),
                             child: const Icon(
                               Icons.security,
                               size: 60,
-                              color: Colors.blue,
+                              color: kAccentColor,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -137,13 +159,6 @@ class _LoginFormState extends State<LoginForm> {
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               letterSpacing: 0.5,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 5.0,
-                                  color: Color.fromARGB(80, 0, 0, 0),
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
                             ),
                           ),
                           const Text(
@@ -180,16 +195,29 @@ class _LoginFormState extends State<LoginForm> {
                         constraints: const BoxConstraints(maxWidth: 400),
                         padding: const EdgeInsets.all(24.0),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: const Color(
+                              0xFFF4F6FA), // softened off-white to reduce glare
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.black.withOpacity(0.035)),
+                          // lighter shadow for subtle elevation
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.shade800.withOpacity(0.15),
-                              blurRadius: 25,
-                              spreadRadius: 2,
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 20,
+                              spreadRadius: 1,
                               offset: const Offset(0, 8),
                             ),
                           ],
+                          // Previous card shadow (commented):
+                          // boxShadow: [
+                          //   BoxShadow(
+                          //     color: Colors.blue.shade800.withOpacity(0.15),
+                          //     blurRadius: 25,
+                          //     spreadRadius: 2,
+                          //     offset: const Offset(0, 8),
+                          //   ),
+                          // ],
                         ),
                         child: Form(
                           key: _formKey,
@@ -300,15 +328,22 @@ class _LoginFormState extends State<LoginForm> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _login,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue.shade600,
+                                    backgroundColor:
+                                        kAccentColor.withOpacity(0.8),
                                     foregroundColor: Colors.white,
                                     elevation: 2,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     disabledBackgroundColor:
-                                        Colors.blue.shade300,
+                                        kAccentColor.withOpacity(0.6),
                                   ),
+                                  // Previous button colors (commented):
+                                  // style: ElevatedButton.styleFrom(
+                                  //   backgroundColor: Colors.blue.shade600,
+                                  //   foregroundColor: Colors.white,
+                                  //   disabledBackgroundColor: Colors.blue.shade300,
+                                  // ),
                                   child: _isLoading
                                       ? SizedBox(
                                           height: 24,
@@ -317,7 +352,7 @@ class _LoginFormState extends State<LoginForm> {
                                             strokeWidth: 2,
                                             valueColor: AlwaysStoppedAnimation<
                                                     Color>(
-                                                Colors.white.withOpacity(0.9)),
+                                                Colors.white.withOpacity(0.95)),
                                           ),
                                         )
                                       : const Text(

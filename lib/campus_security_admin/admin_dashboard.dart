@@ -5,11 +5,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../services/campus_status_service.dart';
 import '../services/backup_service.dart';
+import '../services/data_analytics_service.dart';
 import '../utils/errors_utils.dart';
 import '../widgets/skeleton_loader.dart';
 
 import '../reusable_widget.dart';
 import 'home_page.dart'; // Import to access _HomePageState
+
+// USTP palette
+const Color kPrimaryColor = Color(0xFF1A1851); // deep indigo
+const Color kAccentColor = Color(0xFFFBB215); // warm yellow
+
+// Previously used colors in this file (commented for reference):
+// Colors.blue.withOpacity(0.15)
+// Colors.blue
+// Colors.blueGrey
+// Colors.blueAccent
 
 /// A simple class to hold status properties (color and icon)
 class StatusProperties {
@@ -35,6 +46,7 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   final CampusStatusService _campusStatusService = CampusStatusService();
+  final DataAnalyticsService _analyticsService = DataAnalyticsService();
   bool _isRefreshing = false;
   // Controller for the reason input — keep in state to avoid recreation on rebuilds
   final TextEditingController _statusReasonController = TextEditingController();
@@ -42,6 +54,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String? _selectedStatus;
   // Flag to indicate update in progress to prevent duplicate submissions
   bool _isUpdatingStatus = false;
+
+  // User distribution filter state
+  String _selectedUserFilter = 'All';
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
+
+  // Incident type filter state
+  String _selectedIncidentFilter = 'All';
+  DateTime? _incidentCustomStartDate;
+  DateTime? _incidentCustomEndDate;
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
@@ -90,6 +112,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
             _buildCampusStatusSection(user),
             const SizedBox(height: 24),
+            _buildIncidentTypeSection(user),
+            const SizedBox(height: 24),
             _buildStatisticsSection(user),
             const SizedBox(height: 24),
             _buildReportsAnalysisSection(context),
@@ -123,12 +147,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.15),
+                    color: kPrimaryColor.withOpacity(0.15),
+                    // previous: Colors.blue.withOpacity(0.15)
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.dashboard,
-                    color: Colors.blue,
+                    color: kPrimaryColor, // previous: Colors.blue
                     size: 26,
                   ),
                 ),
@@ -138,7 +163,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blueGrey,
+                    color: kPrimaryColor, // previous: Colors.blueGrey
                   ),
                 ),
               ],
@@ -196,7 +221,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: const Icon(Icons.backup, size: 20),
                   label: const Text('Backup Data'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: kAccentColor, // previous: Colors.blue
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
@@ -215,74 +240,305 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   /// Builds the campus status card with real-time status updates
   Widget _buildCampusStatusSection(User? user) {
-    return StreamBuilder<DatabaseEvent>(
-      stream: FirebaseDatabase.instance.ref('campus_status').onValue,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SkeletonCampusStatusCard();
-        }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Campus Status Card - 2/3 width
+        Expanded(
+          flex: 2,
+          child: StreamBuilder<DatabaseEvent>(
+            stream: FirebaseDatabase.instance.ref('campus_status').onValue,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SkeletonCampusStatusCard();
+              }
 
-        if (snapshot.hasError) {
-          if (context.mounted) {
-            ErrorUtils.showErrorSnackBar(context, snapshot.error);
+              if (snapshot.hasError) {
+                if (context.mounted) {
+                  ErrorUtils.showErrorSnackBar(context, snapshot.error);
+                }
+                return _buildCampusStatusCard(
+                  status: 'Error',
+                  color: Colors.red,
+                  icon: Icons.error_outline,
+                  reason: 'Failed to load status',
+                  lastUpdated: 'Now',
+                  onStatusChange: (newStatus, reason, ctx) {
+                    _updateCampusStatus(newStatus, reason, ctx);
+                  },
+                  isAdmin: user != null,
+                  context: context,
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+                return _buildCampusStatusCard(
+                  status: 'Safe',
+                  color: Colors.green,
+                  icon: Icons.check_circle,
+                  reason: 'Default status',
+                  lastUpdated: 'Now',
+                  onStatusChange: (newStatus, reason, ctx) {
+                    _updateCampusStatus(newStatus, reason, ctx);
+                  },
+                  isAdmin: user != null,
+                  context: context,
+                );
+              }
+
+              // Extract data from snapshot
+              final data = Map<String, dynamic>.from(
+                  snapshot.data!.snapshot.value as Map? ?? {});
+
+              final currentStatus = data['current_status'] ?? 'safe';
+              final reason = data['reason'] ?? 'No information provided';
+              final lastUpdated = data['last_updated'] != null
+                  ? getFormattedTimeAgo(
+                      DateTime.fromMillisecondsSinceEpoch(data['last_updated']))
+                  : 'Unknown';
+
+              // Get status properties
+              final statusProperties =
+                  _getStatusProperties(currentStatus.toLowerCase());
+
+              return _buildCampusStatusCard(
+                status: currentStatus.toUpperCase(),
+                color: statusProperties.color,
+                icon: statusProperties.icon,
+                reason: reason,
+                lastUpdated: 'Updated: $lastUpdated',
+                onStatusChange: (newStatus, reason, ctx) {
+                  _updateCampusStatus(newStatus, reason, ctx);
+                },
+                isAdmin: user != null,
+                context: context,
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 16),
+        // User Type Pie Chart - 1/3 width
+        Expanded(
+          flex: 1,
+          child: Container(
+            height: 300,
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance.collection('users').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 0,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 0,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Error loading user data',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  );
+                }
+
+                final documents = snapshot.data?.docs ?? [];
+
+                // Apply date filtering if needed
+                List<QueryDocumentSnapshot> filteredDocuments = documents;
+
+                if (_selectedUserFilter != 'All') {
+                  DateTime? startDate;
+                  DateTime? endDate;
+
+                  if (_selectedUserFilter == 'Custom') {
+                    startDate = _customStartDate;
+                    endDate = _customEndDate;
+                  } else {
+                    final dateRange = _analyticsService
+                        .getDateRangeFromFilter(_selectedUserFilter);
+                    startDate = dateRange['startDate'];
+                    endDate = dateRange['endDate'];
+                  }
+
+                  filteredDocuments =
+                      _analyticsService.filterDocumentsByDateRange(
+                    documents,
+                    startDate,
+                    endDate,
+                    timestampField: 'createdAt',
+                  );
+                }
+
+                final userTypeCounts = <String, int>{};
+                for (var doc in filteredDocuments) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final userType = data['userType'] as String? ?? 'Unknown';
+                  userTypeCounts[userType] =
+                      (userTypeCounts[userType] ?? 0) + 1;
+                }
+
+                return buildFilterableUserTypePieChart(
+                  userTypeCounts: userTypeCounts,
+                  selectedFilter: _selectedUserFilter,
+                  onFilterChanged: (String filter) {
+                    setState(() {
+                      _selectedUserFilter = filter;
+                      if (filter != 'Custom') {
+                        _customStartDate = null;
+                        _customEndDate = null;
+                      }
+                    });
+                  },
+                  onCustomDatePressed: () async {
+                    final result = await showCustomDateRangePicker(context);
+                    if (result != null) {
+                      setState(() {
+                        _selectedUserFilter = 'Custom';
+                        _customStartDate = result['startDate'];
+                        _customEndDate = result['endDate'];
+                      });
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Builds the incident type chart section
+  Widget _buildIncidentTypeSection(User? user) {
+    return Container(
+      height: 400,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('reports_to_campus_security')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 0,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text('Error: ${snapshot.error}'),
+              ),
+            );
           }
-          return _buildCampusStatusCard(
-            status: 'Error',
-            color: Colors.red,
-            icon: Icons.error_outline,
-            reason: 'Failed to load status',
-            lastUpdated: 'Now',
-            onStatusChange: (newStatus, reason, ctx) {
-              _updateCampusStatus(newStatus, reason, ctx);
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 0,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          final documents = snapshot.data?.docs ?? [];
+
+          // Apply date filtering
+          List<QueryDocumentSnapshot> filteredDocuments = documents;
+          if (_selectedIncidentFilter != 'All') {
+            final dateRange = _analyticsService
+                .getDateRangeFromFilter(_selectedIncidentFilter);
+
+            DateTime? startDate = dateRange['startDate'];
+            DateTime? endDate = dateRange['endDate'];
+
+            // Use custom dates if Custom filter is selected
+            if (_selectedIncidentFilter == 'Custom') {
+              startDate = _incidentCustomStartDate;
+              endDate = _incidentCustomEndDate;
+            }
+
+            filteredDocuments = _analyticsService.filterDocumentsByDateRange(
+              documents,
+              startDate,
+              endDate,
+              timestampField: 'timestamp',
+            );
+          }
+
+          final incidentTypeCounts =
+              _analyticsService.getIncidentTypeCounts(filteredDocuments);
+
+          return buildFilterableIncidentTypePieChart(
+            incidentTypeCounts: incidentTypeCounts,
+            selectedFilter: _selectedIncidentFilter,
+            onFilterChanged: (String filter) {
+              setState(() {
+                _selectedIncidentFilter = filter;
+                // Reset custom dates when changing from custom filter
+                if (filter != 'Custom') {
+                  _incidentCustomStartDate = null;
+                  _incidentCustomEndDate = null;
+                }
+              });
             },
-            isAdmin: user != null,
-            context: context,
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
-          return _buildCampusStatusCard(
-            status: 'Safe',
-            color: Colors.green,
-            icon: Icons.check_circle,
-            reason: 'Default status',
-            lastUpdated: 'Now',
-            onStatusChange: (newStatus, reason, ctx) {
-              _updateCampusStatus(newStatus, reason, ctx);
+            onCustomDatePressed: () async {
+              final result = await showCustomDateRangePicker(context);
+              if (result != null) {
+                setState(() {
+                  _selectedIncidentFilter = 'Custom';
+                  _incidentCustomStartDate = result['startDate'];
+                  _incidentCustomEndDate = result['endDate'];
+                });
+              }
             },
-            isAdmin: user != null,
-            context: context,
           );
-        }
-
-        // Extract data from snapshot
-        final data = Map<String, dynamic>.from(
-            snapshot.data!.snapshot.value as Map? ?? {});
-
-        final currentStatus = data['current_status'] ?? 'safe';
-        final reason = data['reason'] ?? 'No information provided';
-        final lastUpdated = data['last_updated'] != null
-            ? getFormattedTimeAgo(
-                DateTime.fromMillisecondsSinceEpoch(data['last_updated']))
-            : 'Unknown';
-
-        // Get status properties
-        final statusProperties =
-            _getStatusProperties(currentStatus.toLowerCase());
-
-        return _buildCampusStatusCard(
-          status: currentStatus.toUpperCase(),
-          color: statusProperties.color,
-          icon: statusProperties.icon,
-          reason: reason,
-          lastUpdated: 'Updated: $lastUpdated',
-          onStatusChange: (newStatus, reason, ctx) {
-            _updateCampusStatus(newStatus, reason, ctx);
-          },
-          isAdmin: user != null,
-          context: context,
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -361,7 +617,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         final count = uniqueReportIds.length;
         return _buildStatCard(
-          'Active Reports',
+          'Reports',
           count.toString(),
           Icons.report_rounded,
           const Color(0xFFFF9800),
@@ -776,7 +1032,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required BuildContext context,
   }) {
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),

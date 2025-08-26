@@ -4,6 +4,7 @@ import 'package:campus_safe_app_admin_capstone/audit_logs/audit_ui.dart';
 import 'package:campus_safe_app_admin_capstone/campus_security_admin/admin_dashboard.dart';
 import 'package:flutter/material.dart';
 import '../reusable_widget.dart';
+import 'add_security_guard_ui.dart';
 import '../services/audit_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +16,17 @@ import 'search_account.dart';
 import 'user_logs.dart';
 import 'settings_page.dart';
 import 'gemini_chat_page.dart';
+
+// USTP palette
+const Color kPrimaryColor = Color(0xFF1A1851); // deep indigo
+const Color kAccentColor = Color(0xFFFBB215); // warm yellow
+
+// Previous blues commented for reference:
+// Colors.blue
+// Colors.blue.shade700
+// Colors.blue.shade400
+// Colors.blue.shade200
+// Colors.blue.shade50
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -40,6 +52,7 @@ class _HomePageState extends State<HomePage> {
     const GeminiChatPage(),
     const AuditUi(),
     const SettingsPage(),
+    const AddSecurityGuardUi(),
     // const LogoutPage(),
   ];
 
@@ -157,7 +170,8 @@ class _HomePageState extends State<HomePage> {
         Navigator.of(context).pop();
       },
       icon: Icons.check_circle_outline,
-      gradientColors: [Colors.blue.shade400, Colors.blue.shade700],
+      gradientColors: [kPrimaryColor, kPrimaryColor],
+      // previous: [Colors.blue.shade400, Colors.blue.shade700]
       delayMilliseconds: 300,
     );
   }
@@ -188,12 +202,14 @@ class _HomePageState extends State<HomePage> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Colors.blue.shade400, Colors.blue.shade700],
+                colors: [kPrimaryColor.withOpacity(0.6), kPrimaryColor],
               ),
+              // previous gradient: [Colors.blue.shade400, Colors.blue.shade700]
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.shade200.withOpacity(0.5),
+                  color: kPrimaryColor.withOpacity(0.12),
+                  // previous: Colors.blue.shade200.withOpacity(0.5)
                   spreadRadius: 5,
                   blurRadius: 7,
                   offset: const Offset(0, 3),
@@ -277,10 +293,11 @@ class _HomePageState extends State<HomePage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 8), // Reduced padding
                       ),
-                      child: Text(
+                      child: const Text(
                         'Yes',
                         style: TextStyle(
-                          color: Colors.blue.shade700,
+                          color: kPrimaryColor,
+                          // previous: Colors.blue.shade700
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -511,15 +528,17 @@ class _HomePageState extends State<HomePage> {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: _isNotificationOpen
-                                  ? Colors.blue.withOpacity(0.1)
+                                  ? kPrimaryColor.withOpacity(0.08)
                                   : Colors.grey.shade100,
+                              // previous: Colors.blue.withOpacity(0.1)
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: IconButton(
                               icon: const Icon(Icons.notifications_outlined),
                               color: _isNotificationOpen
-                                  ? Colors.blue
-                                  : Colors.blue.shade700,
+                                  ? kPrimaryColor
+                                  : kPrimaryColor.withOpacity(0.95),
+                              // previous: Colors.blue / Colors.blue.shade700
                               onPressed: () {
                                 _toggleNotificationPanel(
                                     context, notificationKey);
@@ -571,14 +590,15 @@ class _HomePageState extends State<HomePage> {
                       // User profile icon with popup menu
                       profileMenuWidget(
                           borderRadius: 50,
-                          shadowColor: Colors.blue,
+                          shadowColor: kPrimaryColor,
                           shadowOpacity: 0.2,
                           spreadRadius: 1,
                           blurRadius: 5,
                           menuOffset: const Offset(0, 40),
                           avatarRadius: 18,
-                          avatarBackgroundColor: Colors.blue,
-                          gradientColors: [Colors.blue, Colors.blue.shade700],
+                          avatarBackgroundColor: kPrimaryColor,
+                          gradientColors: [kPrimaryColor, kPrimaryColor],
+                          // previous: Colors.blue, Colors.blue.shade700
                           avatarIcon: Icons.person,
                           avatarIconColor: Colors.white,
                           menuItems: [
@@ -641,8 +661,7 @@ class _HomePageState extends State<HomePage> {
                           setState(() => _selectedIndex = 1);
                           AuditWrapper.instance.logPageAccess(1);
                         }),
-                        buildNavItem(2, 'Alerts and Announcements',
-                            Icons.warning_outlined,
+                        buildNavItem(2, 'Announcements', Icons.warning_outlined,
                             isSelected: _selectedIndex == 2, onTap: () {
                           setState(() => _selectedIndex = 2);
                           AuditWrapper.instance.logPageAccess(2);
@@ -676,6 +695,12 @@ class _HomePageState extends State<HomePage> {
                             isSelected: _selectedIndex == 8, onTap: () {
                           setState(() => _selectedIndex = 8);
                           AuditWrapper.instance.logPageAccess(8);
+                        }),
+                        buildNavItem(
+                            9, 'Add Security Guard', Icons.security_outlined,
+                            isSelected: _selectedIndex == 9, onTap: () {
+                          setState(() => _selectedIndex = 9);
+                          AuditWrapper.instance.logPageAccess(9);
                         }),
                       ],
                     ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -36,22 +37,67 @@ class DataAnalyticsService {
       ]
     });
 
-    try {
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'];
-        if (text != null && text is String && text.isNotEmpty) {
-          return text.trim();
-        } else {
-          return 'AI did not return any insight.';
+    const int maxRetries = 3;
+    final rnd = Random();
+
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await http.post(url, headers: headers, body: body);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final text =
+              data['candidates']?[0]?['content']?['parts']?[0]?['text'];
+          if (text != null && text is String && text.isNotEmpty) {
+            return text.trim();
+          } else {
+            return 'AI did not return any insight.';
+          }
         }
-      } else {
-        return 'AI request failed: ${response.statusCode}';
+
+        // Rate limit handling
+        if (response.statusCode == 429) {
+          // If last attempt, return helpful guidance
+          if (attempt == maxRetries) {
+            String bodyText = '';
+            try {
+              bodyText = response.body;
+            } catch (_) {}
+            return 'AI request failed: 429 Too Many Requests.\nResponse body: $bodyText\nCheck API quota, billing, or reduce request rate.';
+          }
+          // Exponential backoff with jitter
+          final backoffMs = (pow(2, attempt) * 500).toInt() + rnd.nextInt(500);
+          await Future.delayed(Duration(milliseconds: backoffMs));
+          continue;
+        }
+
+        // Server errors: retry a few times
+        if (response.statusCode >= 500 && response.statusCode < 600) {
+          if (attempt == maxRetries) {
+            return 'AI server error: ${response.statusCode} - ${response.body}';
+          }
+          final backoffMs = (pow(2, attempt) * 400).toInt() + rnd.nextInt(400);
+          await Future.delayed(Duration(milliseconds: backoffMs));
+          continue;
+        }
+
+        // Other client errors: return body if possible
+        String errBody = response.body;
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map && parsed.containsKey('error')) {
+            errBody = parsed['error'].toString();
+          }
+        } catch (_) {}
+        return 'AI request failed: ${response.statusCode} - $errBody';
+      } catch (e) {
+        if (attempt == maxRetries) return 'AI request error: $e';
+        final jitter = rnd.nextInt(300) + 200;
+        await Future.delayed(Duration(milliseconds: 300 + jitter));
+        continue;
       }
-    } catch (e) {
-      return 'AI request error: $e';
     }
+
+    return 'AI request failed after $maxRetries retries.';
   }
 
   /// Aggregates monthly counts from Firestore documents
@@ -180,5 +226,114 @@ class DataAnalyticsService {
     if (maxValue <= 50) return 10;
     if (maxValue <= 100) return 20;
     return (maxValue / 5).ceilToDouble();
+  }
+
+  /// Aggregates user counts by userType
+  Map<String, int> getUserTypeCounts(List<QueryDocumentSnapshot> documents) {
+    final Map<String, int> userTypeCounts = {};
+
+    for (var doc in documents) {
+      final data = doc.data() as Map<String, dynamic>;
+      final userType = data['userType'] as String? ?? 'Unknown';
+      userTypeCounts[userType] = (userTypeCounts[userType] ?? 0) + 1;
+    }
+
+    return userTypeCounts;
+  }
+
+  /// Aggregates incident counts by incidentType
+  Map<String, int> getIncidentTypeCounts(
+      List<QueryDocumentSnapshot> documents) {
+    final Map<String, int> incidentTypeCounts = {};
+
+    for (var doc in documents) {
+      final data = doc.data() as Map<String, dynamic>;
+      final incidentType = data['incidentType'] as String? ?? 'Others';
+      incidentTypeCounts[incidentType] =
+          (incidentTypeCounts[incidentType] ?? 0) + 1;
+    }
+
+    return incidentTypeCounts;
+  }
+
+  /// Filters documents by date range
+  List<QueryDocumentSnapshot> filterDocumentsByDateRange(
+    List<QueryDocumentSnapshot> documents,
+    DateTime? startDate,
+    DateTime? endDate, {
+    String timestampField = 'createdAt',
+  }) {
+    if (startDate == null && endDate == null) {
+      return documents;
+    }
+
+    return documents.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      DateTime? docDate;
+      if (data.containsKey(timestampField)) {
+        final dynamic timestampData = data[timestampField];
+        if (timestampData is Timestamp) {
+          docDate = timestampData.toDate();
+        } else if (timestampData is int) {
+          docDate = DateTime.fromMillisecondsSinceEpoch(timestampData);
+        } else if (timestampData is String) {
+          try {
+            docDate = DateTime.parse(timestampData);
+          } catch (e) {
+            return false;
+          }
+        }
+      }
+
+      if (docDate == null) return false;
+
+      if (startDate != null && docDate.isBefore(startDate)) {
+        return false;
+      }
+      if (endDate != null && docDate.isAfter(endDate)) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Gets date range based on filter selection
+  Map<String, DateTime?> getDateRangeFromFilter(String filter) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (filter) {
+      case 'Today':
+        return {
+          'startDate': today,
+          'endDate': today.add(const Duration(days: 1)),
+        };
+      case 'Yesterday':
+        final yesterday = today.subtract(const Duration(days: 1));
+        return {
+          'startDate': yesterday,
+          'endDate': today,
+        };
+      case 'Last Week':
+        final lastWeek = today.subtract(const Duration(days: 7));
+        return {
+          'startDate': lastWeek,
+          'endDate': today.add(const Duration(days: 1)),
+        };
+      case 'Last Month':
+        final lastMonth = DateTime(now.year, now.month - 1, now.day);
+        return {
+          'startDate': lastMonth,
+          'endDate': today.add(const Duration(days: 1)),
+        };
+      case 'All':
+      default:
+        return {
+          'startDate': null,
+          'endDate': null,
+        };
+    }
   }
 }

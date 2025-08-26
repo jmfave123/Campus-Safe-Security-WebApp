@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../reusable_widget.dart';
 
 class UserLogsPage extends StatefulWidget {
   const UserLogsPage({super.key});
@@ -497,68 +498,44 @@ class _UserLogsPageState extends State<UserLogsPage> {
     return enrichedLogs;
   }
 
-  // Date Filter PopupMenuButton
+  // Date Filter PopupMenuButton (consistent UI with other screens)
   Widget _buildDateFilterButton() {
     return Container(
       decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF1A1851).withOpacity(0.3), // kPrimaryColor
+        ),
       ),
       child: PopupMenuButton<String>(
         tooltip: 'Filter logs by date',
         onSelected: (String result) async {
-          if (result == 'Custom') {
-            final DateTimeRange? picked = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now()
-                  .add(const Duration(days: 1)), // Allow selecting today
-              initialDateRange: _selectedDateRange,
-              builder: (context, child) {
-                // Optional: Apply theme
-                return Theme(
-                  data: ThemeData.light().copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: Colors.blue, // header background color
-                      onPrimary: Colors.white, // header text color
-                      onSurface: Colors.blueGrey, // body text color
-                    ),
-                    textButtonTheme: TextButtonThemeData(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.blue, // button text color
-                      ),
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) {
-              setState(() {
-                _selectedDateFilter = result;
-                _customStartDate = picked.start;
-                // End date is the START of the day AFTER the selected end date.
-                // Firestore query uses 'isLessThan' this value.
-                _customEndDate = DateTime(
-                    picked.end.year, picked.end.month, picked.end.day + 1);
-                _selectedDateRange =
-                    picked; // Store for display and initial range
-              });
-            }
-          } else {
+          if (result != 'Custom') {
             setState(() {
               _selectedDateFilter = result;
               _customStartDate = null;
               _customEndDate = null;
               _selectedDateRange = null;
             });
+            return;
+          }
+
+          // Use the shared compact custom date-range picker from reusable_widget.dart
+          final res = await showCustomDateRangePicker(context);
+          if (res != null &&
+              res.containsKey('start') &&
+              res.containsKey('end')) {
+            final DateTime? start = res['start'] as DateTime?;
+            final DateTime? end = res['end'] as DateTime?;
+            if (start != null && end != null) {
+              setState(() {
+                _selectedDateFilter = 'Custom';
+                _customStartDate = start;
+                // Preserve existing logic: store end as start of next day for exclusive queries
+                _customEndDate = DateTime(end.year, end.month, end.day + 1);
+                _selectedDateRange = DateTimeRange(start: start, end: end);
+              });
+            }
           }
         },
         offset: const Offset(0, 40),
@@ -566,69 +543,82 @@ class _UserLogsPageState extends State<UserLogsPage> {
           borderRadius: BorderRadius.circular(12),
         ),
         elevation: 4,
-        itemBuilder: (BuildContext context) => [
-          _buildPopupMenuItem('Today', Icons.today),
-          _buildPopupMenuItem('Yesterday', Icons.history),
-          _buildPopupMenuItem('Last Week', Icons.date_range),
-          _buildPopupMenuItem('Last Month', Icons.calendar_month),
-          _buildPopupMenuItem('All', Icons.all_inclusive),
-          _buildPopupMenuItem('Custom', Icons.calendar_today),
-        ],
+        itemBuilder: (BuildContext context) {
+          final options = [
+            {'value': 'Today', 'icon': Icons.today},
+            {'value': 'Yesterday', 'icon': Icons.history},
+            {'value': 'Last Week', 'icon': Icons.date_range},
+            {'value': 'Last Month', 'icon': Icons.calendar_month},
+            {'value': 'All', 'icon': Icons.all_inclusive},
+            {'value': 'Custom', 'icon': Icons.calendar_today},
+          ];
+
+          return options.map((option) {
+            final isSelected = _selectedDateFilter == option['value'];
+            return PopupMenuItem<String>(
+              value: option['value'] as String,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF1A1851).withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      option['icon'] as IconData,
+                      size: 18,
+                      color: isSelected
+                          ? const Color(0xFF1A1851)
+                          : Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      option['value'] as String,
+                      style: TextStyle(
+                        color: isSelected
+                            ? const Color(0xFF1A1851)
+                            : Colors.grey.shade600,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList();
+        },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue, Colors.blue.shade700],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.filter_list, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.filter_list,
+                size: 18,
+                color: const Color(0xFF1A1851),
+              ),
+              const SizedBox(width: 4),
               Text(
                 _getFilterButtonLabel(),
                 style: const TextStyle(
-                  color: Colors.white,
+                  fontSize: 12,
+                  color: Color(0xFF1A1851),
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+              Icon(
+                Icons.arrow_drop_down,
+                size: 18,
+                color: const Color(0xFF1A1851),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _buildPopupMenuItem(String value, IconData icon) {
-    final isSelected = _selectedDateFilter == value;
-    return PopupMenuItem<String>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isSelected ? Colors.blue : Colors.grey.shade700,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.blue : Colors.black,
-            ),
-          ),
-          if (isSelected) ...[
-            const Spacer(),
-            const Icon(Icons.check, size: 16, color: Colors.blue),
-          ],
-        ],
       ),
     );
   }
