@@ -2018,7 +2018,7 @@ Widget buildFilterableUserTypePieChart({
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.filter_list,
                           size: 18,
                           color: kPrimaryColor,
@@ -2026,14 +2026,14 @@ Widget buildFilterableUserTypePieChart({
                         const SizedBox(width: 4),
                         Text(
                           selectedFilter,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: kPrimaryColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Icon(
+                        const Icon(
                           Icons.arrow_drop_down,
                           size: 18,
                           color: kPrimaryColor,
@@ -2464,7 +2464,7 @@ Widget buildFilterableIncidentTypePieChart({
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.filter_list,
                           size: 18,
                           color: kPrimaryColor,
@@ -2472,14 +2472,14 @@ Widget buildFilterableIncidentTypePieChart({
                         const SizedBox(width: 4),
                         Text(
                           selectedFilter,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: kPrimaryColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Icon(
+                        const Icon(
                           Icons.arrow_drop_down,
                           size: 18,
                           color: kPrimaryColor,
@@ -2607,15 +2607,15 @@ Future<Map<String, DateTime?>?> showCustomDateRangePicker(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
+              const Row(
                 children: [
                   Icon(
                     Icons.date_range,
                     color: kPrimaryColor,
                     size: 24,
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
+                  SizedBox(width: 12),
+                  Text(
                     'Select Date Range',
                     style: TextStyle(
                       fontSize: 18,
@@ -2650,7 +2650,7 @@ Future<Map<String, DateTime?>?> showCustomDateRangePicker(
                       builder: (context, child) {
                         return Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(
+                            colorScheme: const ColorScheme.light(
                               primary: kPrimaryColor,
                               onPrimary: Colors.white,
                               surface: Colors.white,
@@ -2694,7 +2694,7 @@ Future<Map<String, DateTime?>?> showCustomDateRangePicker(
                       builder: (context, child) {
                         return Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(
+                            colorScheme: const ColorScheme.light(
                               primary: kPrimaryColor,
                               onPrimary: Colors.white,
                               surface: Colors.white,

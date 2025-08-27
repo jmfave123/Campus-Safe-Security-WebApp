@@ -596,10 +596,10 @@ class _UserLogsPageState extends State<UserLogsPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.filter_list,
                 size: 18,
-                color: const Color(0xFF1A1851),
+                color: Color(0xFF1A1851),
               ),
               const SizedBox(width: 4),
               Text(
@@ -611,10 +611,10 @@ class _UserLogsPageState extends State<UserLogsPage> {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
+              const Icon(
                 Icons.arrow_drop_down,
                 size: 18,
-                color: const Color(0xFF1A1851),
+                color: Color(0xFF1A1851),
               ),
             ],
           ),

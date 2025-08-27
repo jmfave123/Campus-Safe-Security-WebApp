@@ -965,8 +965,8 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
               result.containsKey('end')) {
             setState(() {
               _selectedDateFilter = 'Custom';
-              _customStartDate = result['start'] as DateTime?;
-              _customEndDate = result['end'] as DateTime?;
+              _customStartDate = result['start'];
+              _customEndDate = result['end'];
             });
           }
         },
@@ -1035,10 +1035,10 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.filter_list,
                 size: 18,
-                color: const Color(0xFF1A1851), // kPrimaryColor
+                color: Color(0xFF1A1851), // kPrimaryColor
               ),
               const SizedBox(width: 4),
               Text(
@@ -1050,10 +1050,10 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
+              const Icon(
                 Icons.arrow_drop_down,
                 size: 18,
-                color: const Color(0xFF1A1851), // kPrimaryColor
+                color: Color(0xFF1A1851), // kPrimaryColor
               ),
             ],
           ),

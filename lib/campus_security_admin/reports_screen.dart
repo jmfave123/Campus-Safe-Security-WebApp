@@ -687,14 +687,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         final status = report['status'] ?? 'pending';
         final userId = report['userId'];
         final remarks = report['resolveRemarks'];
-        final falseInfoRemarks = report['falseInfoRemarks'];
+        final falseInfoRemarks = report['falseReportRemarks'];
         final hasRemarks = status.toLowerCase() == 'resolved' &&
             remarks != null &&
             remarks.isNotEmpty;
-        final hasFalseInfoRemarks =
-            status.toLowerCase() == 'false information' &&
-                falseInfoRemarks != null &&
-                falseInfoRemarks.isNotEmpty;
+        final hasFalseInfoRemarks = status.toLowerCase() == 'false reports' &&
+            falseInfoRemarks != null &&
+            falseInfoRemarks.isNotEmpty;
 
         return Card(
           elevation: 1,
@@ -718,7 +717,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ? Colors.green.shade50
                         : status.toLowerCase() == 'in progress'
                             ? Colors.blue.shade50
-                            : status.toLowerCase() == 'false information'
+                            : status.toLowerCase() == 'false report'
                                 ? Colors.red.shade50
                                 : Colors.orange.shade50,
                   ],
@@ -966,7 +965,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'False Information Notes',
+                                  'False Report Notes',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -1137,7 +1136,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         chipColor = Colors.blue;
         statusIcon = Icons.sync;
         break;
-      case 'false information':
+      case 'false report':
         chipColor = Colors.red.shade700;
         statusIcon = Icons.report_problem;
         break;
@@ -1205,7 +1204,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final falseInfoRemarks = report['falseInfoRemarks'];
     final isResolved = (report['status'] ?? '').toLowerCase() == 'resolved';
     final isFalseInfo =
-        (report['status'] ?? '').toLowerCase() == 'false information';
+        (report['status'] ?? '').toLowerCase() == 'false report';
 
     showDialog(
       context: context,
@@ -2063,13 +2062,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                           ],
 
-                          // Remarks field for false information status
-                          if (selectedStatus == 'false information') ...[
+                          // Remarks field for false report status
+                          if (selectedStatus == 'false report') ...[
                             const SizedBox(height: 24),
                             AnimatedOpacity(
-                              opacity: selectedStatus == 'false information'
-                                  ? 1.0
-                                  : 0.0,
+                              opacity:
+                                  selectedStatus == 'false report' ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 300),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2080,7 +2078,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           size: 16, color: Colors.red.shade700),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'False Information Details',
+                                        'False Report Details',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -2102,7 +2100,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       maxLines: 3,
                                       decoration: const InputDecoration(
                                         hintText:
-                                            'Explain why this report is considered false information...',
+                                            'Explain why this report is considered false report...',
                                         contentPadding: EdgeInsets.all(12),
                                         border: InputBorder.none,
                                       ),
@@ -2142,12 +2140,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             return;
                           }
 
-                          if (selectedStatus == 'false information' &&
+                          if (selectedStatus == 'false report' &&
                               falseInfoRemarksController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(const SnackBar(
                               content: Text(
-                                  'Please provide details about the false information'),
+                                  'Please provide details about the false report'),
                               backgroundColor: Colors.red,
                             ));
                             return;
@@ -2156,7 +2154,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           String? remarks;
                           if (selectedStatus == 'resolved') {
                             remarks = remarksController.text;
-                          } else if (selectedStatus == 'false information') {
+                          } else if (selectedStatus == 'false report') {
                             remarks = falseInfoRemarksController.text;
                           }
 

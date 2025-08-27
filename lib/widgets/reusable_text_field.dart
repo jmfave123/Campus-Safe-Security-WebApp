@@ -45,7 +45,7 @@ Widget reusableTextField({
         fillColor: fillColor ?? Colors.grey[100],
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: themeColor, width: 1.5),
+          borderSide: const BorderSide(color: themeColor, width: 1.5),
         ),
         focusColor: themeColor,
         enabledBorder: OutlineInputBorder(

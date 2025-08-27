@@ -278,8 +278,8 @@ class UserReportsService {
         'color': Colors.green,
       },
       {
-        'value': 'false information',
-        'label': 'False Information',
+        'value': 'false report',
+        'label': 'False Report',
         'icon': Icons.report_problem,
         'color': Colors.red,
       },

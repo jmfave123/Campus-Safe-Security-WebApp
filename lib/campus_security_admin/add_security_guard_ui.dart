@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import '../services/add_security_guard_services.dart';
 
 // Reuse the same primary color used in HomePage
 const Color kPrimaryColor = Color(0xFF1A1851);
@@ -15,19 +19,314 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
   String _name = '';
   String _phone = '';
   String _badge = '';
+  BuildContext? _dialogContext;
+  Uint8List? _profileImage;
 
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
       _formKey.currentState?.save();
-      // For now just show a SnackBar; actual save logic can be added later
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Security guard "$_name" added (Phone: $_phone, Badge: $_badge)'),
-          backgroundColor: kPrimaryColor,
-        ),
-      );
+      // Call service to add guard
+      addSecurityGuard(
+        name: _name,
+        phone: _phone,
+        badge: _badge,
+        profileImage: _profileImage,
+      ).then((_) {
+        // show success and close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Security guard "$_name" added'),
+            backgroundColor: kPrimaryColor,
+          ),
+        );
+        if (_dialogContext != null) {
+          Navigator.of(_dialogContext!).pop();
+          _dialogContext = null;
+        }
+      }).catchError((e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add guard: $e')),
+        );
+      });
     }
+  }
+
+  // Returns the card-like container with the form (extracted from the original file)
+  Widget _buildFormCard([StateSetter? onDialogUpdate]) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: Icon(Icons.person),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter a name'
+                  : null,
+              onSaved: (v) => _name = v?.trim() ?? '',
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                prefixIcon: Icon(Icons.phone),
+              ),
+              keyboardType: TextInputType.phone,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter a phone number'
+                  : null,
+              onSaved: (v) => _phone = v?.trim() ?? '',
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Badge / ID',
+                prefixIcon: Icon(Icons.badge),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter badge or ID'
+                  : null,
+              onSaved: (v) => _badge = v?.trim() ?? '',
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                    child: Text('Add Guard'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () {
+                    _formKey.currentState?.reset();
+                    setState(() {
+                      _name = '';
+                      _phone = '';
+                      _badge = '';
+                      _profileImage = null;
+                    });
+                    if (onDialogUpdate != null) onDialogUpdate(() {});
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kPrimaryColor,
+                    side: BorderSide(color: kPrimaryColor.withOpacity(0.2)),
+                  ),
+                  child: const Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Text('Reset'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage({Function? onUpdate}) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        // Prefer bytes (web); if not available (desktop) try path as fallback
+        if (file.bytes != null) {
+          setState(() {
+            _profileImage = file.bytes;
+          });
+          // Call dialog update function if provided
+          if (onUpdate != null) {
+            onUpdate(() {});
+          }
+        } else if (file.path != null) {
+          // On some platforms FilePicker returns a path but not bytes.
+          // We don't show debug UI here; production code might handle path-based loading.
+        }
+      }
+    } catch (e) {
+      // ignore errors for now; in production consider logging
+    }
+  }
+
+  void _showAddDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        // store dialog context so we can close it from _submit
+        _dialogContext = dialogContext;
+        final mq = MediaQuery.of(dialogContext).size;
+        // Keep dialog compact: 90% on very small screens, otherwise cap at 420px
+        final double maxDialogWidth = mq.width < 480 ? mq.width * 0.9 : 420;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              // light gray sheet behind the card (not fully transparent)
+              backgroundColor: Colors.grey.shade200,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              // make the gray sheet smaller on wide screens by increasing inset
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: mq.width < 800 ? 24.0 : mq.width * 0.18,
+                vertical: mq.height < 700 ? 24.0 : mq.height * 0.12,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxDialogWidth),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Top-centered avatar with camera overlay (social-media style)
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              // Avatar with ring and shadow
+                              MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      _pickImage(onUpdate: setDialogState),
+                                  child: Container(
+                                    width: 84,
+                                    height: 84,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _profileImage == null
+                                            ? kPrimaryColor.withOpacity(0.2)
+                                            : kPrimaryColor,
+                                        width:
+                                            _profileImage == null ? 1.5 : 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.08),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                      color: Colors.grey.shade100,
+                                    ),
+                                    child: ClipOval(
+                                      child: _profileImage != null
+                                          ? Image.memory(
+                                              _profileImage!,
+                                              width: 84,
+                                              height: 84,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Container(
+                                              color: Colors.transparent,
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.person,
+                                                color: kPrimaryColor,
+                                                size: 40,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Camera action button (overlapping)
+                              Positioned(
+                                right: -4,
+                                bottom: -4,
+                                child: Material(
+                                  color: Colors.white,
+                                  elevation: 2,
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () =>
+                                        _pickImage(onUpdate: setDialogState),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.camera_alt,
+                                        size: 18,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Add Security Guard',
+                            style: TextStyle(
+                              color: kPrimaryColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // form card stretches to full constrained width
+                          Align(
+                            alignment: Alignment.center,
+                            child: _buildFormCard(setDialogState),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      // clear dialog context when it closes
+      _dialogContext = null;
+      // also reset form state so next open starts fresh
+      _formKey.currentState?.reset();
+      _name = '';
+      _phone = '';
+      _badge = '';
+      _profileImage = null;
+    });
   }
 
   @override
@@ -59,104 +358,42 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                     child: const Icon(Icons.security, color: kPrimaryColor),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Add Security Guard',
-                    style: TextStyle(
-                      color: kPrimaryColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  const Expanded(
+                    child: Text(
+                      'Add Security Guard',
+                      style: TextStyle(
+                        color: kPrimaryColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Right aligned + Add button
+                  ElevatedButton.icon(
+                    onPressed: _showAddDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                      child: Text('Add'),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Card-like container matching other UI
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Please enter a name'
-                            : null,
-                        onSaved: (v) => _name = v?.trim() ?? '',
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Phone Number',
-                          prefixIcon: Icon(Icons.phone),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Please enter a phone number'
-                            : null,
-                        onSaved: (v) => _phone = v?.trim() ?? '',
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Badge / ID',
-                          prefixIcon: Icon(Icons.badge),
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Please enter badge or ID'
-                            : null,
-                        onSaved: (v) => _badge = v?.trim() ?? '',
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kPrimaryColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 20.0, vertical: 12.0),
-                              child: Text('Add Guard'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton(
-                            onPressed: () => _formKey.currentState?.reset(),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: kPrimaryColor,
-                              side: BorderSide(
-                                  color: kPrimaryColor.withOpacity(0.2)),
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 12.0),
-                              child: Text('Reset'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              // Placeholder space - form is shown in the popup when + Add is pressed
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'Press + Add to add a new security guard',
+                    style: TextStyle(color: Colors.grey.shade600),
                   ),
                 ),
               ),

@@ -320,7 +320,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // User Type Pie Chart - 1/3 width
         Expanded(
           flex: 1,
-          child: Container(
+          child: SizedBox(
             height: 300,
             child: StreamBuilder<QuerySnapshot>(
               stream:
@@ -438,7 +438,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   /// Builds the incident type chart section
   Widget _buildIncidentTypeSection(User? user) {
-    return Container(
+    return SizedBox(
       height: 400,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

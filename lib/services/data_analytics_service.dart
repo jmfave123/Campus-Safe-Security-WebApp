@@ -6,13 +6,25 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DataAnalyticsService {
-  /// Fetches AI-powered insights from Gemini API
+  // Simple in-memory cache for AI insights to avoid repeated API calls.
+  static final Map<String, String> _aiInsightsCache = {};
+
+  /// Fetches AI-powered insights from Gemini API, with caching.
   Future<String> getAIInsights({
     required List<double> values,
     required List<String> months,
     String itemLabel = 'report',
     String? customPrompt,
   }) async {
+    // Generate a unique key for the cache based on the request parameters.
+    final cacheKey =
+        '$itemLabel|${months.join(',')}|${values.join(',')}|$customPrompt';
+
+    // If a cached result exists, return it immediately.
+    if (_aiInsightsCache.containsKey(cacheKey)) {
+      return _aiInsightsCache[cacheKey]!;
+    }
+
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
       return 'AI API key not found.';
@@ -25,7 +37,7 @@ class DataAnalyticsService {
             'Then, in one short sentence, give one actionable recommendation.';
 
     final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey');
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       'contents': [
@@ -48,7 +60,10 @@ class DataAnalyticsService {
           final text =
               data['candidates']?[0]?['content']?['parts']?[0]?['text'];
           if (text != null && text is String && text.isNotEmpty) {
-            return text.trim();
+            final insight = text.trim();
+            // Cache the successful result before returning.
+            _aiInsightsCache[cacheKey] = insight;
+            return insight;
           } else {
             return 'AI did not return any insight.';
           }
