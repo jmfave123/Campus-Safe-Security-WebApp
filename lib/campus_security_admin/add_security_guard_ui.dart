@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/add_security_guard_services.dart';
+import '../widgets/reusable_text_field.dart';
 
 // Reuse the same primary color used in HomePage
 const Color kPrimaryColor = Color(0xFF1A1851);
@@ -21,16 +22,29 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
   String _badge = '';
   BuildContext? _dialogContext;
   Uint8List? _profileImage;
+  // Controllers for reusable text fields
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _badgeController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
-      _formKey.currentState?.save();
+      // read values from controllers
+      _name = _nameController.text.trim();
+      _phone = _phoneController.text.trim();
+      _badge = _badgeController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
       // Call service to add guard
       addSecurityGuard(
         name: _name,
         phone: _phone,
         badge: _badge,
         profileImage: _profileImage,
+        email: email,
+        password: password,
       ).then((_) {
         // show success and close dialog
         ScaffoldMessenger.of(context).showSnackBar(
@@ -43,6 +57,12 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
           Navigator.of(_dialogContext!).pop();
           _dialogContext = null;
         }
+        // clear controllers after success
+        _nameController.clear();
+        _phoneController.clear();
+        _badgeController.clear();
+        _emailController.clear();
+        _passwordController.clear();
       }).catchError((e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to add guard: $e')),
@@ -72,38 +92,53 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person),
-              ),
+            reusableTextField(
+              controller: _nameController,
+              labelText: 'Full Name',
               validator: (v) => (v == null || v.trim().isEmpty)
                   ? 'Please enter a name'
                   : null,
-              onSaved: (v) => _name = v?.trim() ?? '',
+              prefixIcon: Icons.person,
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon: Icon(Icons.phone),
-              ),
+            reusableTextField(
+              controller: _phoneController,
+              labelText: 'Phone Number',
+              prefixIcon: Icons.phone,
               keyboardType: TextInputType.phone,
               validator: (v) => (v == null || v.trim().isEmpty)
                   ? 'Please enter a phone number'
                   : null,
-              onSaved: (v) => _phone = v?.trim() ?? '',
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: 'Badge / ID',
-                prefixIcon: Icon(Icons.badge),
-              ),
+            reusableTextField(
+              controller: _badgeController,
+              labelText: 'Badge / ID',
+              prefixIcon: Icons.badge,
               validator: (v) => (v == null || v.trim().isEmpty)
                   ? 'Please enter badge or ID'
                   : null,
-              onSaved: (v) => _badge = v?.trim() ?? '',
+            ),
+            const SizedBox(height: 12),
+            reusableTextField(
+              controller: _emailController,
+              labelText: 'Email',
+              prefixIcon: Icons.email,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter an email'
+                  : null,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            reusableTextField(
+              controller: _passwordController,
+              labelText: 'Password',
+              prefixIcon: Icons.lock,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter a password'
+                  : null,
+              obscureText: true,
+              showToggle: true,
             ),
             const SizedBox(height: 20),
             Row(
@@ -133,6 +168,12 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                       _badge = '';
                       _profileImage = null;
                     });
+                    // also clear controllers
+                    _nameController.clear();
+                    _phoneController.clear();
+                    _badgeController.clear();
+                    _emailController.clear();
+                    _passwordController.clear();
                     if (onDialogUpdate != null) onDialogUpdate(() {});
                   },
                   style: OutlinedButton.styleFrom(
@@ -402,5 +443,15 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _badgeController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }
