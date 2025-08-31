@@ -37,7 +37,7 @@ Widget reusableTextField({
 
 class ReusableTextField extends StatefulWidget {
   const ReusableTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.labelText,
     required this.validator,
@@ -51,7 +51,7 @@ class ReusableTextField extends StatefulWidget {
     this.hintText,
     this.onChanged,
     this.keyboardType,
-  }) : super(key: key);
+  });
 
   final TextEditingController controller;
   final String labelText;

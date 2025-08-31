@@ -304,22 +304,51 @@ class AlcoholDetectionService {
       'Student ID',
       'Course',
       'Detection Time',
+      'Synced Time to Database',
       'BAC',
       'Status'
     ];
 
     final data = detections.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['timestamp'] as Timestamp?;
-      final formattedDate = timestamp != null
-          ? DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate())
-          : 'Unknown';
-
+      // Detection Time (originalTimestamp)
+      String detectionTime = 'No time applied';
+      final originalTimestampRaw = data['originalTimestamp'];
+      if (originalTimestampRaw != null) {
+        DateTime? dt;
+        if (originalTimestampRaw is String) {
+          try {
+            dt = DateTime.parse(originalTimestampRaw);
+          } catch (_) {}
+        } else if (originalTimestampRaw is Timestamp) {
+          dt = originalTimestampRaw.toDate();
+        }
+        if (dt != null) {
+          detectionTime = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+        }
+      }
+      // Synced Time (timestamp)
+      String syncedTime = 'No time applied';
+      final timestamp = data['timestamp'];
+      if (timestamp != null) {
+        DateTime? dt;
+        if (timestamp is String) {
+          try {
+            dt = DateTime.parse(timestamp);
+          } catch (_) {}
+        } else if (timestamp is Timestamp) {
+          dt = timestamp.toDate();
+        }
+        if (dt != null) {
+          syncedTime = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+        }
+      }
       return [
         data['studentName'] ?? 'N/A',
         data['studentId'] ?? 'N/A',
         data['studentCourse'] ?? 'N/A',
-        formattedDate,
+        detectionTime,
+        syncedTime,
         '${data['bac'] ?? 'N/A'}',
         data['status'] ?? statusActive,
       ];
@@ -341,6 +370,7 @@ class AlcoholDetectionService {
         3: pw.Alignment.center,
         4: pw.Alignment.center,
         5: pw.Alignment.center,
+        6: pw.Alignment.center,
       },
     );
   }

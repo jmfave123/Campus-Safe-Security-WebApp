@@ -493,6 +493,43 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Widget buildNavItem(int index, String title, IconData icon,
+      {required bool isSelected, required VoidCallback onTap}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        borderRadius: BorderRadius.circular(8),
+        color: isSelected ? kPrimaryColor.withOpacity(0.1) : Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? kPrimaryColor : Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? kPrimaryColor : Colors.grey.shade700,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final GlobalKey notificationKey = GlobalKey();
@@ -588,42 +625,61 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 16),
                       // User profile icon with popup menu
-                      profileMenuWidget(
-                          borderRadius: 50,
-                          shadowColor: kPrimaryColor,
-                          shadowOpacity: 0.2,
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                          menuOffset: const Offset(0, 40),
-                          avatarRadius: 18,
-                          avatarBackgroundColor: kPrimaryColor,
-                          gradientColors: [kPrimaryColor, kPrimaryColor],
-                          // previous: Colors.blue, Colors.blue.shade700
-                          avatarIcon: Icons.person,
-                          avatarIconColor: Colors.white,
-                          menuItems: [
-                            const PopupMenuItem(
-                              value: 'profile',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.account_circle, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Profile'),
-                                ],
-                              ),
+                      PopupMenuButton<String>(
+                        offset: const Offset(0, 40),
+                        onSelected: (String value) {
+                          if (value == 'profile') {
+                            // Handle profile navigation
+                          } else if (value == 'logout') {
+                            _logout();
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          const PopupMenuItem(
+                            value: 'profile',
+                            child: Row(
+                              children: [
+                                Icon(Icons.account_circle, size: 18),
+                                SizedBox(width: 8),
+                                Text('Profile'),
+                              ],
                             ),
-                            PopupMenuItem(
-                              value: 'logout',
-                              onTap: _logout,
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.logout, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Logout'),
-                                ],
-                              ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'logout',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout, size: 18),
+                                SizedBox(width: 8),
+                                Text('Logout'),
+                              ],
                             ),
-                          ])
+                          ),
+                        ],
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: kPrimaryColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: kPrimaryColor.withOpacity(0.2),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: kPrimaryColor,
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      )
                     ],
                   ),
                 ],

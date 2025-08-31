@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/notify_services.dart';
+import '../services/add_security_guard_services.dart'; // For image upload
+import 'package:file_picker/file_picker.dart'; // For image picker
 import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -33,6 +35,10 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  // Image-related state variables
+  Uint8List? _alertImageData;
+  String? _alertImageName;
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -50,7 +56,42 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     }
   }
 
-  Future<void> _sendPushNotification(String message) async {
+  // Image picker helper - allows selecting an image and storing bytes
+  Future<void> _pickAlertImage() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (file.bytes != null) {
+          setState(() {
+            _alertImageData = file.bytes;
+            _alertImageName = file.name;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting image: $e')),
+        );
+      }
+    }
+  }
+
+  // Remove selected image
+  void _removeAlertImage() {
+    setState(() {
+      _alertImageData = null;
+      _alertImageName = null;
+    });
+  }
+
+  Future<void> _sendPushNotification(String message,
+      {String? bigPictureUrl}) async {
     try {
       String userType;
       switch (_selectedTarget) {
@@ -67,11 +108,13 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
               userType: "Student",
               heading: "Security Announcement",
               content: message,
+              bigPicture: bigPictureUrl,
             ),
             NotifServices.sendGroupNotification(
               userType: "Faculty & Staff",
               heading: "Security Announcement",
               content: message,
+              bigPicture: bigPictureUrl,
             ),
           ]);
           return;
@@ -79,9 +122,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
 
       await NotifServices.sendGroupNotification(
         userType: userType,
-        heading:
-            "Security Announcement", // Using a direct string instead of undefined method
+        heading: "Security Announcement",
         content: message,
+        bigPicture: bigPictureUrl,
       );
 
       print('Sending notification to userType: $userType'); // Debug print
@@ -116,29 +159,54 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     });
 
     try {
-      // Create alert document with target audience
+      String? imageUrl;
+
+      // Upload image if one is selected
+      if (_alertImageData != null && _alertImageName != null) {
+        try {
+          final uploadResult =
+              await uploadImage(_alertImageData!, _alertImageName!);
+          imageUrl = uploadResult['secure_url'] as String?;
+        } catch (e) {
+          print('Image upload error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Image upload failed: $e')),
+            );
+          }
+          // Continue without image if upload fails
+        }
+      }
+
+      // Create alert document with target audience and image URL
       final alertData = {
         'message': _messageController.text.trim(),
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'active',
         'target': _selectedTarget.toString().split('.').last,
         'targetDisplay': _getTargetText(_selectedTarget),
+        if (imageUrl != null) 'imageUrl': imageUrl,
+        if (_alertImageName != null) 'imageName': _alertImageName,
       };
 
       final docRef = await FirebaseFirestore.instance
           .collection('alerts_data')
           .add(alertData);
 
-      // Send push notification
-      await _sendPushNotification(_messageController.text.trim());
+      // Send push notification with image
+      await _sendPushNotification(
+        _messageController.text.trim(),
+        bigPictureUrl: imageUrl,
+      );
 
       if (!mounted) return;
 
       // Show receipt of the alert sent
       await _showAlertReceipt(alertData);
 
-      // Clear the input
+      // Clear the input and image
       _messageController.clear();
+      _removeAlertImage();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,6 +293,36 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ),
+
+                    // Show image info if image is selected
+                    if (_alertImageName != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.image,
+                                color: Colors.blue.shade600, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Image: ${_alertImageName!}',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -348,6 +446,17 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                   'Time',
                   DateFormat('MMM d, y HH:mm').format(DateTime.now()),
                 ),
+
+                // Show image info if image was included
+                if (alertData['imageName'] != null) ...[
+                  const SizedBox(height: 12),
+                  receiptInfoRow(
+                    Icons.image,
+                    'Image',
+                    alertData['imageName'],
+                  ),
+                ],
+
                 const SizedBox(height: 20),
                 Center(
                   child: ElevatedButton(
@@ -756,6 +865,94 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.blueGrey.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Image picker section
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.image,
+                                      color: Colors.blueGrey.shade600,
+                                      size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Attach Image (Optional)',
+                                    style: TextStyle(
+                                      color: Colors.blueGrey.shade700,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (_alertImageName != null) ...[
+                                // Show selected image name and remove button
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.green.shade200),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.check_circle,
+                                          color: Colors.green.shade600,
+                                          size: 20),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _alertImageName!,
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: _removeAlertImage,
+                                        icon: Icon(Icons.close,
+                                            color: Colors.red.shade600,
+                                            size: 20),
+                                        tooltip: 'Remove image',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                // Show choose file button
+                                OutlinedButton.icon(
+                                  onPressed: _pickAlertImage,
+                                  icon: const Icon(Icons.upload_file),
+                                  label: const Text('Choose File'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.blue.shade700,
+                                    side:
+                                        BorderSide(color: Colors.blue.shade300),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(height: 16),

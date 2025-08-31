@@ -655,12 +655,22 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
 
   DataRow _buildDataRow(QueryDocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
-    // Format timestamp
-    final timestamp = data['timestamp'] as Timestamp?;
-    final formattedDate = timestamp != null
-        ? DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate())
-        : 'Unknown';
+    final fallbackTimestampRaw = data['timestamp'];
+    String syncedTimeLabel = 'No time applied';
+    // Synced Time (timestamp)
+    if (fallbackTimestampRaw != null) {
+      DateTime? dt;
+      if (fallbackTimestampRaw is String) {
+        try {
+          dt = DateTime.parse(fallbackTimestampRaw);
+        } catch (_) {}
+      } else if (fallbackTimestampRaw is Timestamp) {
+        dt = fallbackTimestampRaw.toDate();
+      }
+      if (dt != null) {
+        syncedTimeLabel = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      }
+    }
 
     return DataRow(
       onSelectChanged: (selected) {
@@ -672,7 +682,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         _buildDataCell(Icons.person, data['studentName'] ?? 'N/A'),
         _buildDataCell(Icons.badge, data['studentId'] ?? 'N/A'),
         _buildDataCell(Icons.school, data['studentCourse'] ?? 'N/A'),
-        _buildDataCell(Icons.access_time, formattedDate),
+        _buildDataCell(Icons.sync, syncedTimeLabel),
         _buildDataCell(Icons.speed, '${data['bac'] ?? 'N/A'}'),
         DataCell(_buildStatusChip(
             data['status'] ?? AlcoholDetectionService.statusActive)),
@@ -853,11 +863,43 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   }
 
   void _showDetectionDetails(Map<String, dynamic> detection) {
-    final timestamp = detection['timestamp'] as Timestamp?;
-    final formattedDate = timestamp != null
-        ? DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate())
-        : 'Unknown';
-
+    final originalTimestampRaw = detection['originalTimestamp'];
+    final fallbackTimestampRaw = detection['timestamp'];
+    String detectionTimeLabel = 'No time applied';
+    String syncedTimeLabel = 'No time applied';
+    bool showNoTimeNote = false;
+    // Detection Time (originalTimestamp)
+    if (originalTimestampRaw != null) {
+      DateTime? dt;
+      if (originalTimestampRaw is String) {
+        try {
+          dt = DateTime.parse(originalTimestampRaw);
+        } catch (_) {}
+      } else if (originalTimestampRaw is Timestamp) {
+        dt = originalTimestampRaw.toDate();
+      }
+      if (dt != null) {
+        detectionTimeLabel = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      } else {
+        showNoTimeNote = true;
+      }
+    } else {
+      showNoTimeNote = true;
+    }
+    // Synced Time (timestamp)
+    if (fallbackTimestampRaw != null) {
+      DateTime? dt;
+      if (fallbackTimestampRaw is String) {
+        try {
+          dt = DateTime.parse(fallbackTimestampRaw);
+        } catch (_) {}
+      } else if (fallbackTimestampRaw is Timestamp) {
+        dt = fallbackTimestampRaw.toDate();
+      }
+      if (dt != null) {
+        syncedTimeLabel = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      }
+    }
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -882,7 +924,28 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                       children: [
                         _buildStudentInfoSection(detection),
                         const SizedBox(height: 16),
-                        _buildDetectionInfoSection(detection, formattedDate),
+                        _buildDetectionInfoSectionWithTime(
+                            detection, detectionTimeLabel, syncedTimeLabel),
+                        if (showNoTimeNote)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline,
+                                    color: Colors.orange, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "If the data doesn't have detection time, the detection time was directly synced to the database.",
+                                    style: TextStyle(
+                                        color: Colors.orange.shade800,
+                                        fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         const SizedBox(height: 16),
                         if (detection['notes'] != null)
                           _buildNotesSection(detection['notes']),
@@ -961,8 +1024,25 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  Widget _buildDetectionInfoSection(
-      Map<String, dynamic> detection, String formattedDate) {
+  Widget _buildDetectionInfoSectionWithTime(
+      Map<String, dynamic> detection, String detectionTimeLabel,
+      [String? syncedTimeLabel]) {
+    // Compute synced time label if not provided
+    String syncedLabel = syncedTimeLabel ?? 'No time applied';
+    final fallbackTimestampRaw = detection['timestamp'];
+    if (syncedTimeLabel == null && fallbackTimestampRaw != null) {
+      DateTime? dt;
+      if (fallbackTimestampRaw is String) {
+        try {
+          dt = DateTime.parse(fallbackTimestampRaw);
+        } catch (_) {}
+      } else if (fallbackTimestampRaw is Timestamp) {
+        dt = fallbackTimestampRaw.toDate();
+      }
+      if (dt != null) {
+        syncedLabel = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      }
+    }
     return _buildInfoCard(
       'Detection Information',
       [
@@ -974,7 +1054,12 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         _buildDetailTile(
           icon: Icons.access_time,
           label: 'Detection Time',
-          value: formattedDate,
+          value: detectionTimeLabel,
+        ),
+        _buildDetailTile(
+          icon: Icons.sync,
+          label: 'Synced time to database',
+          value: syncedLabel,
         ),
         _buildDetailTile(
           icon: Icons.speed,

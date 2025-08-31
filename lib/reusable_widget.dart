@@ -12,6 +12,18 @@ const Color kPrimaryColor = Color(0xFF1A1851); // was Colors.blue
 const Color kAccentColor =
     Color(0xFFFBB215); // was Colors.amber / orange accents
 
+// Helper: safely coerce a dynamic Firestore field to a boolean.
+bool _parseBool(dynamic v) {
+  if (v == null) return false;
+  if (v is bool) return v;
+  if (v is String) {
+    final s = v.trim().toLowerCase();
+    return s == 'true' || s == 'yes' || s == 'verified';
+  }
+  if (v is num) return v != 0;
+  return false;
+}
+
 BoxDecoration boxDecoration(Color color, Color shadowColor, double spreadRadius,
     double blurRadius, Offset offset) {
   return BoxDecoration(
@@ -55,212 +67,15 @@ Row rowWidget(double padding, Color color, double opacity, double borderRadius,
         ),
         child: Icon(icon, size: size, color: color),
       ),
-      SizedBox(width: size),
-      Text(text,
-          style:
-              TextStyle(color: color, fontSize: size, fontWeight: fontWeight)),
+      const SizedBox(width: 12),
+      Text(
+        text,
+        style: TextStyle(
+          fontWeight: fontWeight,
+          color: Colors.black87,
+        ),
+      ),
     ],
-  );
-}
-
-Widget profileMenuWidget({
-  required double borderRadius,
-  required Color shadowColor,
-  required double shadowOpacity,
-  required double spreadRadius,
-  required double blurRadius,
-  required Offset menuOffset,
-  required double avatarRadius,
-  required Color avatarBackgroundColor,
-  required List<Color> gradientColors,
-  required IconData avatarIcon,
-  required Color avatarIconColor,
-  required List<PopupMenuItem> menuItems,
-  Function()? onSelected,
-}) {
-  return Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
-      boxShadow: [
-        BoxShadow(
-          color: shadowColor.withOpacity(shadowOpacity),
-          spreadRadius: spreadRadius,
-          blurRadius: blurRadius,
-        ),
-      ],
-    ),
-    child: PopupMenuButton(
-      offset: menuOffset,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      icon: CircleAvatar(
-        radius: avatarRadius,
-        backgroundColor: avatarBackgroundColor,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: gradientColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(50),
-          ),
-          child: Icon(avatarIcon, color: avatarIconColor),
-        ),
-      ),
-      itemBuilder: (context) => menuItems,
-      onSelected: onSelected != null ? (value) => onSelected() : null,
-    ),
-  );
-}
-
-Widget buildNavItem(int index, String title, IconData icon,
-    {required bool isSelected, required Function() onTap}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          // color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-          color:
-              isSelected ? kPrimaryColor.withOpacity(0.08) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            // color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
-            color: isSelected
-                ? kPrimaryColor.withOpacity(0.22)
-                : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                // color: isSelected ? Colors.blue.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
-                color: isSelected
-                    ? kPrimaryColor.withOpacity(0.18)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                // color: isSelected ? Colors.blue : Colors.grey[700],
-                color: isSelected ? kPrimaryColor : Colors.grey[700],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  // color: isSelected ? Colors.blue : Colors.grey[700],
-                  color: isSelected ? kPrimaryColor : Colors.grey[700],
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-//NOTIFICATIONS
-
-Widget buildNotificationItem({
-  required String message,
-  required String time,
-  required bool isRead,
-  required String notificationId,
-  required IconData statusIcon,
-  required LinearGradient statusGradient,
-  required Function() onTap,
-}) {
-  return InkWell(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        // gradient: isRead ? null : LinearGradient(colors: [Colors.blue.shade50.withOpacity(0.4), Colors.white]),
-        gradient: isRead
-            ? null
-            : LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [kPrimaryColor.withOpacity(0.06), Colors.white],
-              ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: statusGradient,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              statusIcon,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.4,
-                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                    color: Colors.blueGrey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blueGrey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isRead)
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                // gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade700]),
-                gradient: LinearGradient(
-                  colors: [
-                    kPrimaryColor.withOpacity(0.6),
-                    kPrimaryColor.withOpacity(0.95)
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      ),
-    ),
   );
 }
 
@@ -395,6 +210,260 @@ Widget buildIncidentTypeIcon(String incidentType) {
       iconData,
       color: Colors.white,
       size: 20,
+    ),
+  );
+}
+
+// -----------------------------------------------------------------------------
+// SECURITY GUARDS UI WIDGETS
+// Reusable read-only container that lists security guards from a provided stream.
+Widget buildGuardsContainer({
+  required Stream<QuerySnapshot> stream,
+  required BuildContext context,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 0,
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.people, size: 24, color: Colors.blue.shade700),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Security Guards',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              // Count badge
+              StreamBuilder<QuerySnapshot>(
+                stream: stream,
+                builder: (context, snapshot) {
+                  final count = snapshot.hasData ? snapshot.data!.size : 0;
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade100),
+                    ),
+                    child: Text(
+                      '$count entries',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Table area
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty) {
+                  return Center(
+                      child: Text('No guards found',
+                          style: TextStyle(color: Colors.grey.shade600)));
+                }
+
+                // Build a responsive DataTable for a cleaner tabular view
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Optional small toolbar with quick actions / search could go here
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          headingRowColor:
+                              MaterialStateProperty.all(Colors.blue.shade50),
+                          dataRowHeight: 64,
+                          columnSpacing: 24,
+                          columns: const [
+                            DataColumn(
+                                label: Text('Email',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Created',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Verified',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Actions',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                          ],
+                          rows: docs.map((d) {
+                            final data = d.data() as Map<String, dynamic>;
+                            final email = data['email'] ?? '';
+                            final ts = data['accountCreated'];
+                            String createdStr = '';
+                            if (ts is Timestamp) {
+                              createdStr = DateFormat('yyyy-MM-dd HH:mm')
+                                  .format(ts.toDate());
+                            } else if (ts is int) {
+                              createdStr = DateFormat('yyyy-MM-dd HH:mm')
+                                  .format(
+                                      DateTime.fromMillisecondsSinceEpoch(ts));
+                            }
+                            final verified =
+                                _parseBool(data['isVerifiedByAdmin']) ||
+                                    _parseBool(data['emailVerified']);
+                            final imgUrl = data['profileImageUrl'] ?? '';
+
+                            return DataRow(cells: [
+                              DataCell(
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 320),
+                                  child: Text(email.toString(),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600)),
+                                ),
+                              ),
+                              DataCell(Text(createdStr)),
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: verified
+                                      ? Colors.green.shade50
+                                      : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: verified
+                                          ? Colors.green.shade200
+                                          : Colors.grey.shade200),
+                                ),
+                                child: Text(
+                                  verified ? 'Verified' : 'Unverified',
+                                  style: TextStyle(
+                                    color: verified
+                                        ? Colors.green.shade700
+                                        : Colors.grey.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )),
+                              DataCell(Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.visibility),
+                                    tooltip: 'View details',
+                                    onPressed: () => showGuardDetailsDialog(
+                                        context, data, imgUrl),
+                                  ),
+                                  // placeholder for future actions like verify/delete
+                                ],
+                              ))
+                            ]);
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Detail dialog for a guard
+void showGuardDetailsDialog(
+    BuildContext context, Map<String, dynamic> data, String imageUrl) {
+  showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(
+                          width: 140, height: 140, color: Colors.grey.shade200))
+                  : Container(
+                      width: 140, height: 140, color: Colors.grey.shade200),
+            ),
+            const SizedBox(height: 12),
+            Text(data['email'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(
+                'Created: ${data['accountCreated'] != null ? data['accountCreated'].toString() : 'Unknown'}'),
+            const SizedBox(height: 8),
+            Text(
+                'Verified by admin: ${_parseBool(data['isVerifiedByAdmin']) || _parseBool(data['emailVerified']) ? 'Yes' : 'No'}'),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            )
+          ],
+        ),
+      ),
     ),
   );
 }
