@@ -49,6 +49,9 @@ class DataAnalyticsService {
       ]
     });
 
+    // Add a small static delay to every request to help stay under rate limits.
+    await Future.delayed(const Duration(milliseconds: 500));
+
     const int maxRetries = 3;
     final rnd = Random();
 
@@ -73,14 +76,11 @@ class DataAnalyticsService {
         if (response.statusCode == 429) {
           // If last attempt, return helpful guidance
           if (attempt == maxRetries) {
-            String bodyText = '';
-            try {
-              bodyText = response.body;
-            } catch (_) {}
-            return 'AI request failed: 429 Too Many Requests.\nResponse body: $bodyText\nCheck API quota, billing, or reduce request rate.';
+            return 'AI service is busy (429 Too Many Requests). Please try again in a few moments. If this persists, check your API quota and billing status.';
           }
-          // Exponential backoff with jitter
-          final backoffMs = (pow(2, attempt) * 500).toInt() + rnd.nextInt(500);
+          // Exponential backoff with jitter - increased duration significantly
+          final backoffMs =
+              (pow(2, attempt) * 2000).toInt() + rnd.nextInt(1500);
           await Future.delayed(Duration(milliseconds: backoffMs));
           continue;
         }
@@ -90,7 +90,9 @@ class DataAnalyticsService {
           if (attempt == maxRetries) {
             return 'AI server error: ${response.statusCode} - ${response.body}';
           }
-          final backoffMs = (pow(2, attempt) * 400).toInt() + rnd.nextInt(400);
+          // Use a slightly longer backoff for server errors
+          final backoffMs =
+              (pow(2, attempt) * 2000).toInt() + rnd.nextInt(1000);
           await Future.delayed(Duration(milliseconds: backoffMs));
           continue;
         }
@@ -106,8 +108,8 @@ class DataAnalyticsService {
         return 'AI request failed: ${response.statusCode} - $errBody';
       } catch (e) {
         if (attempt == maxRetries) return 'AI request error: $e';
-        final jitter = rnd.nextInt(300) + 200;
-        await Future.delayed(Duration(milliseconds: 300 + jitter));
+        final jitter = rnd.nextInt(500) + 500;
+        await Future.delayed(Duration(milliseconds: 1500 + jitter));
         continue;
       }
     }

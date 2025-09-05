@@ -10,7 +10,7 @@ import '../services/add_security_guard_services.dart';
 const Color kPrimaryColor = Color(0xFF1A1851);
 
 class AddSecurityGuardUi extends StatefulWidget {
-  const AddSecurityGuardUi({Key? key}) : super(key: key);
+  const AddSecurityGuardUi({super.key});
 
   @override
   _AddSecurityGuardUiState createState() => _AddSecurityGuardUiState();
@@ -323,7 +323,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
             ),
           ],
         ),
-        Row(
+        const Row(
           children: [
             // Future: Add export button here like the PDF button in alcohol detection
             // _buildExportButton(),
@@ -698,7 +698,6 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
               if (!isVerified)
                 TextButton(
                   onPressed: () => _verifyGuard(doc.id),
-                  child: const Text('Verify'),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.green,
@@ -707,6 +706,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Verify'),
                 ),
               IconButton(
                 icon: const Icon(Icons.visibility, size: 20),
@@ -787,9 +787,15 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     );
   }
 
-  void _showGuardDetails(Map<String, dynamic> data, String imageUrl,
-      [String? docId]) {
-    showDialog(
+  Future<void> _showGuardDetails(Map<String, dynamic> data, String imageUrl,
+      [String? docId]) async {
+    // local controllers for editable fields in the dialog
+    final TextEditingController nameController =
+        TextEditingController(text: (data['name'] ?? '').toString());
+    final TextEditingController phoneController =
+        TextEditingController(text: (data['phone'] ?? '').toString());
+
+    await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
@@ -845,85 +851,194 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Divider(),
-                          const SizedBox(height: 8),
-                          // Profile preview
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+
+                          // Decorative avatar with subtle gradient ring
                           Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: _profileImageData != null
-                                  ? Image.memory(
-                                      _profileImageData!,
-                                      width: 120,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : (imageUrl.isNotEmpty
-                                      ? Image.network(
-                                          imageUrl,
-                                          width: 120,
-                                          height: 120,
+                            child: Container(
+                              width: 130,
+                              height: 130,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.blue.shade200,
+                                    Colors.purple.shade100
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 6),
+                                  )
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(6.0),
+                                child: ClipOval(
+                                  child: _profileImageData != null
+                                      ? Image.memory(
+                                          _profileImageData!,
+                                          width: 118,
+                                          height: 118,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (c, e, s) => Container(
-                                            width: 120,
-                                            height: 120,
-                                            color: Colors.grey.shade200,
-                                            child: const Icon(Icons.person,
-                                                size: 40),
-                                          ),
                                         )
-                                      : Container(
-                                          width: 120,
-                                          height: 120,
-                                          color: Colors.grey.shade200,
-                                          child: const Icon(Icons.person,
-                                              size: 40),
-                                        )),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () =>
-                                    _pickImage(onUpdate: setDialogState),
-                                icon: const Icon(Icons.photo),
-                                label: const Text('Select Photo'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
+                                      : (imageUrl.isNotEmpty
+                                          ? Image.network(
+                                              imageUrl,
+                                              width: 118,
+                                              height: 118,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, s) =>
+                                                  Container(
+                                                width: 118,
+                                                height: 118,
+                                                color: Colors.grey.shade100,
+                                                child: const Icon(Icons.person,
+                                                    size: 44),
+                                              ),
+                                            )
+                                          : Container(
+                                              width: 118,
+                                              height: 118,
+                                              color: Colors.grey.shade100,
+                                              child: const Icon(Icons.person,
+                                                  size: 44),
+                                            )),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              if (_profileImageData != null)
-                                TextButton(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      _profileImageData = null;
-                                      _profileImageName = null;
-                                    });
-                                  },
-                                  child: const Text('Remove'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+                          Center(
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 12,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () =>
+                                      _pickImage(onUpdate: setDialogState),
+                                  icon: const Icon(Icons.photo),
+                                  label: const Text('Change Photo'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade700,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                    foregroundColor: Colors.white,
+                                  ),
                                 ),
-                            ],
+                                if (_profileImageData != null)
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        _profileImageData = null;
+                                        _profileImageName = null;
+                                      });
+                                    },
+                                    child: const Text('Remove'),
+                                  ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          _buildDetailItem(
-                              Icons.email, 'Email', data['email'] ?? 'N/A'),
-                          _buildDetailItem(
-                              Icons.calendar_today,
-                              'Created',
-                              _formatAccountCreatedForDisplay(
-                                      data['accountCreated']) ??
-                                  'N/A'),
-                          _buildDetailItem(
-                            Icons.verified_user,
-                            'Verification Status',
-                            (data['isVerifiedByAdmin'] == true ||
-                                    data['emailVerified'] == true)
-                                ? 'Verified'
-                                : 'Pending',
+
+                          const SizedBox(height: 18),
+
+                          // Form card with subtle elevation and rounded corners
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Profile',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: nameController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Full name',
+                                    prefixIcon: const Icon(Icons.person),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade50,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  controller: phoneController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Phone',
+                                    prefixIcon: const Icon(Icons.phone),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade50,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  readOnly: true,
+                                  initialValue: data['email'] ?? 'N/A',
+                                  decoration: InputDecoration(
+                                    labelText: 'Email',
+                                    prefixIcon: const Icon(Icons.email),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade50,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today,
+                                        size: 16, color: Colors.grey.shade600),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatAccountCreatedForDisplay(
+                                              data['accountCreated']) ??
+                                          'N/A',
+                                      style: TextStyle(
+                                          color: Colors.grey.shade700),
+                                    ),
+                                    const Spacer(),
+                                    _buildStatusChip(
+                                        (data['isVerifiedByAdmin'] == true ||
+                                                data['emailVerified'] == true)
+                                            ? 'verified'
+                                            : 'pending'),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
+
                           const SizedBox(height: 16),
                         ],
                       ),
@@ -952,9 +1067,12 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
+                            // perform save with edited fields
                             Navigator.pop(context);
                             await _saveGuardChanges(
-                                data['uid'] ?? docIdFromData(data));
+                                data['uid'] ?? docIdFromData(data),
+                                name: nameController.text.trim(),
+                                phone: phoneController.text.trim());
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
@@ -1016,7 +1134,8 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
   }
 
   // Upload selected image (if any) and save changes to guard document
-  Future<void> _saveGuardChanges(String docId) async {
+  Future<void> _saveGuardChanges(String docId,
+      {String? name, String? phone}) async {
     if (docId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Unable to save: missing document id'),
@@ -1027,13 +1146,13 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
     // Show loading snackbar
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: const [
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Row(children: [
           CircularProgressIndicator(),
           SizedBox(width: 12),
           Expanded(child: Text('Saving changes...')),
         ]),
-        duration: const Duration(minutes: 1),
+        duration: Duration(minutes: 1),
       ));
     }
 
@@ -1046,6 +1165,8 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
       final updates = <String, dynamic>{};
       if (uploadedUrl != null) updates['profileImageUrl'] = uploadedUrl;
+      if (name != null && name.isNotEmpty) updates['name'] = name;
+      if (phone != null && phone.isNotEmpty) updates['phone'] = phone;
 
       final success = await updateGuard(docId, updates);
 

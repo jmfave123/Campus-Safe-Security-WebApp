@@ -321,7 +321,7 @@ Widget buildGuardsContainer({
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
                           headingRowColor:
-                              MaterialStateProperty.all(Colors.blue.shade50),
+                              WidgetStateProperty.all(Colors.blue.shade50),
                           dataRowHeight: 64,
                           columnSpacing: 24,
                           columns: const [
