@@ -47,6 +47,7 @@
   OneSignalDeferred.push(async function(OneSignal) {
     await OneSignal.init({
       appId: "ce9ff261-c17d-4aeb-9b89-464e05179046",
+      allowLocalhostAsSecureOrigin: true, // Enable localhost development
     });
   });
 </script>

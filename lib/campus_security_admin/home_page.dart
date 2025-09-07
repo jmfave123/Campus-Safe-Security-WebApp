@@ -466,7 +466,14 @@ class _HomePageState extends State<HomePage> {
         final shouldRequest = await _showPermissionDialog();
         
         if (shouldRequest == true) {
-          final granted = await WebNotificationService.requestPermission();
+          // Try OneSignal first
+          bool granted = await WebNotificationService.requestPermission();
+          
+          // If OneSignal fails, try native browser API
+          if (!granted) {
+            print('OneSignal permission failed, trying native API...');
+            granted = await WebNotificationService.requestNativePermission();
+          }
           
           if (granted) {
             _showNotificationSuccessSnackBar();
@@ -477,6 +484,7 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       print('Error requesting web notification permission: $e');
+      _showNotificationDeniedSnackBar();
     }
   }
 
@@ -484,6 +492,7 @@ class _HomePageState extends State<HomePage> {
   Future<bool?> _showPermissionDialog() async {
     return showDialog<bool>(
       context: context,
+      barrierDismissible: false, // Make it modal
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
@@ -494,7 +503,11 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           content: const Text(
-            'Would you like to receive push notifications for new reports, alerts, and important updates?\n\n'
+            'Would you like to receive push notifications for:\n\n'
+            '• New incident reports\n'
+            '• Security alerts and announcements\n'
+            '• Alcohol detection warnings\n'
+            '• Important system updates\n\n'
             'You can change this setting later in your browser.',
           ),
           actions: [
@@ -508,7 +521,7 @@ class _HomePageState extends State<HomePage> {
                 backgroundColor: kPrimaryColor,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Enable'),
+              child: const Text('Enable Notifications'),
             ),
           ],
         );

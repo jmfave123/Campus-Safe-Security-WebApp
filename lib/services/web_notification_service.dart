@@ -9,7 +9,7 @@ class WebNotificationService {
   /// Check if OneSignal is available and initialized
   static bool get isAvailable {
     if (!kIsWeb) return false;
-    
+
     try {
       return js.context.hasProperty('OneSignal') && _isInitialized;
     } catch (e) {
@@ -35,7 +35,7 @@ class WebNotificationService {
   static Future<void> _waitForOneSignal() async {
     int attempts = 0;
     const maxAttempts = 50; // 5 seconds max wait
-    
+
     while (attempts < maxAttempts) {
       try {
         if (js.context.hasProperty('OneSignal')) {
@@ -47,7 +47,7 @@ class WebNotificationService {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
-    
+
     throw Exception('OneSignal SDK not found');
   }
 
@@ -56,18 +56,49 @@ class WebNotificationService {
     if (!kIsWeb || !isAvailable) return false;
 
     try {
+      // First check current permission
+      final currentPermission = await getPermissionStatus();
+      if (currentPermission == 'granted') {
+        return true;
+      }
+
       // Use OneSignal's built-in permission request
       js.context.callMethod('eval', [
         '''
+        window.onesignalPermissionResult = null;
         OneSignal.Notifications.requestPermission().then(function(accepted) {
           console.log("Permission granted: " + accepted);
+          window.onesignalPermissionResult = accepted;
+        }).catch(function(error) {
+          console.log("Permission error: " + error);
+          window.onesignalPermissionResult = false;
         });
         '''
       ]);
 
-      // Wait a bit and check permission status
-      await Future.delayed(const Duration(milliseconds: 1000));
-      return await getPermissionStatus() == 'granted';
+      // Wait for the result with timeout
+      int attempts = 0;
+      const maxAttempts = 50; // 5 seconds max wait
+
+      while (attempts < maxAttempts) {
+        try {
+          final result = js.context['onesignalPermissionResult'];
+          if (result != null) {
+            // Clean up
+            js.context.callMethod(
+                'eval', ['delete window.onesignalPermissionResult;']);
+            return result == true;
+          }
+        } catch (e) {
+          // Continue waiting
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      // Fallback: check browser permission directly
+      final finalPermission = await getPermissionStatus();
+      return finalPermission == 'granted';
     } catch (e) {
       print('Error requesting permission: $e');
       return false;
@@ -91,6 +122,56 @@ class WebNotificationService {
   static Future<bool> areNotificationsEnabled() async {
     final status = await getPermissionStatus();
     return status == 'granted';
+  }
+
+  /// Request permission using browser's native API (fallback)
+  static Future<bool> requestNativePermission() async {
+    if (!kIsWeb) return false;
+
+    try {
+      js.context.callMethod('eval', [
+        '''
+        window.nativePermissionResult = null;
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            window.nativePermissionResult = true;
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(function(permission) {
+              window.nativePermissionResult = (permission === 'granted');
+            });
+          } else {
+            window.nativePermissionResult = false;
+          }
+        } else {
+          window.nativePermissionResult = false;
+        }
+        '''
+      ]);
+
+      // Wait for result
+      int attempts = 0;
+      const maxAttempts = 50;
+
+      while (attempts < maxAttempts) {
+        try {
+          final result = js.context['nativePermissionResult'];
+          if (result != null) {
+            js.context
+                .callMethod('eval', ['delete window.nativePermissionResult;']);
+            return result == true;
+          }
+        } catch (e) {
+          // Continue waiting
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error requesting native permission: $e');
+      return false;
+    }
   }
 
   /// Show a simple local notification (fallback)
