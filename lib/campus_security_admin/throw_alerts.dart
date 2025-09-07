@@ -1105,7 +1105,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                 border: Border.all(color: Colors.blue.shade100),
                               ),
                               child: Text(
-                                '$count alert${count == 1 ? '' : 's'} found',
+                                '$count announcement${count == 1 ? '' : 's'} found',
                                 style: TextStyle(
                                   color: Colors.blue.shade700,
                                   fontWeight: FontWeight.w500,
@@ -1970,7 +1970,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           )),
                       const SizedBox(height: 12),
                       const Text(
-                        'There are no alerts for the selected time period. Please adjust your filter or try again.',
+                        'There are no announcements for the selected time period. Please adjust your filter or try again.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.blueGrey, height: 1.5),
                       ),

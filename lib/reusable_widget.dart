@@ -2392,6 +2392,8 @@ Widget buildFilterableIncidentTypePieChart({
   required String selectedFilter,
   required Function(String) onFilterChanged,
   required VoidCallback onCustomDatePressed,
+  DateTime? customStartDate,
+  DateTime? customEndDate,
 }) {
   final Map<String, Color> incidentColors = {
     'Drunk Person': Colors.purple,
@@ -2565,13 +2567,27 @@ Widget buildFilterableIncidentTypePieChart({
           if (total == 0)
             Expanded(
               child: Center(
-                child: Text(
-                  'No incident data available for $selectedFilter',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
+                child: Builder(builder: (context) {
+                  final bool hasCustomRange = selectedFilter == 'Custom' &&
+                      customStartDate != null &&
+                      customEndDate != null;
+
+                  final String rangeLabel = hasCustomRange
+                      ? '${DateFormat('MMM d').format(customStartDate)} - ${DateFormat('MMM d').format(customEndDate)}'
+                      : selectedFilter;
+
+                  final message = hasCustomRange
+                      ? 'No incident data available for selected months ($rangeLabel)'
+                      : 'No incident data available for selected period ($rangeLabel)';
+
+                  return Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  );
+                }),
               ),
             )
           else
@@ -2644,13 +2660,28 @@ Widget buildFilterableIncidentTypePieChart({
               ),
             ),
           const SizedBox(height: 8),
-          Text(
-            'Total Reports: $total (${selectedFilter})',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
+          // Format filter label: when custom dates are provided show the date range
+          Builder(builder: (context) {
+            final bool hasCustomRange = selectedFilter == 'Custom' &&
+                customStartDate != null &&
+                customEndDate != null;
+
+            final filterLabel = hasCustomRange
+                ? '${DateFormat('MMM d').format(customStartDate)} - ${DateFormat('MMM d').format(customEndDate)}'
+                : selectedFilter;
+
+            final displayText = hasCustomRange
+                ? 'Total Reports: ($filterLabel)'
+                : 'Total Reports: $total ($filterLabel)';
+
+            return Text(
+              displayText,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            );
+          }),
         ],
       ),
     ),

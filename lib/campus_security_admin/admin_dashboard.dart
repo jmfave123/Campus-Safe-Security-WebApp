@@ -80,7 +80,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Dashboard refreshed successfully'),
+            content: Text('Refreshed successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -536,6 +536,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 });
               }
             },
+            customStartDate: _incidentCustomStartDate,
+            customEndDate: _incidentCustomEndDate,
           );
         },
       ),

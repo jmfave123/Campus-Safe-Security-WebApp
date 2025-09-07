@@ -753,7 +753,7 @@ class _HomePageState extends State<HomePage> {
                           AuditWrapper.instance.logPageAccess(8);
                         }),
                         buildNavItem(
-                            9, 'Add Security Guard', Icons.security_outlined,
+                            9, 'Security Guards', Icons.security_outlined,
                             isSelected: _selectedIndex == 9, onTap: () {
                           setState(() => _selectedIndex = 9);
                           AuditWrapper.instance.logPageAccess(9);
