@@ -2,10 +2,12 @@
 
 import 'package:campus_safe_app_admin_capstone/audit_logs/audit_ui.dart';
 import 'package:campus_safe_app_admin_capstone/campus_security_admin/admin_dashboard.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../reusable_widget.dart';
 import 'add_security_guard_ui.dart';
 import '../services/audit_wrapper.dart';
+import '../services/web_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'alcohol_detection_page.dart';
@@ -323,7 +325,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _toggleNotificationPanel(
-      BuildContext context, GlobalKey notificationKey) {
+      BuildContext context, GlobalKey notificationKey) async {
+    // Request web notification permission if on web and not granted
+    if (kIsWeb) {
+      try {
+        final hasPermission = await WebNotificationService.areNotificationsEnabled();
+        if (!hasPermission) {
+          await _requestWebNotificationPermission();
+        }
+      } catch (e) {
+        print('Error checking notification permission: $e');
+      }
+    }
+
     if (_isNotificationOpen) {
       _removeOverlay();
       return;
@@ -438,6 +452,102 @@ class _HomePageState extends State<HomePage> {
     }, onError: (error) {
       print('Error listening to breathalyzer notifications: $error');
     });
+  }
+
+  // Request web notification permission
+  Future<void> _requestWebNotificationPermission() async {
+    if (!kIsWeb) return;
+
+    try {
+      final hasPermission = await WebNotificationService.areNotificationsEnabled();
+      
+      if (!hasPermission) {
+        // Show a friendly dialog before requesting permission
+        final shouldRequest = await _showPermissionDialog();
+        
+        if (shouldRequest == true) {
+          final granted = await WebNotificationService.requestPermission();
+          
+          if (granted) {
+            _showNotificationSuccessSnackBar();
+          } else {
+            _showNotificationDeniedSnackBar();
+          }
+        }
+      }
+    } catch (e) {
+      print('Error requesting web notification permission: $e');
+    }
+  }
+
+  // Show permission request dialog
+  Future<bool?> _showPermissionDialog() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.notifications_active, color: kPrimaryColor),
+              const SizedBox(width: 8),
+              const Text('Enable Notifications'),
+            ],
+          ),
+          content: const Text(
+            'Would you like to receive push notifications for new reports, alerts, and important updates?\n\n'
+            'You can change this setting later in your browser.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not Now'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Enable'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show success message
+  void _showNotificationSuccessSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text('Notifications enabled successfully!'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Show denied message
+  void _showNotificationDeniedSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text('You can enable notifications later in browser settings.'),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   // Fetch the initial count of unread notifications

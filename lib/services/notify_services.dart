@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'web_notification_service.dart';
 
 class NotifServices {
   static const String _appId = "ce9ff261-c17d-4aeb-9b89-464e05179046";
@@ -16,6 +18,19 @@ class NotifServices {
     required String content,
     String? bigPicture,
   }) async {
+    // For web users, also show a local notification as fallback
+    if (kIsWeb) {
+      try {
+        WebNotificationService.showLocalNotification(
+          title: heading,
+          message: content,
+          icon: bigPicture,
+        );
+      } catch (e) {
+        print('Error showing web local notification: $e');
+      }
+    }
+
     final Map<String, dynamic> notificationData = {
       "app_id": _appId,
       "filters": [

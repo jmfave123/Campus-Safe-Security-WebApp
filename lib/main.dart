@@ -4,6 +4,7 @@ import 'package:campus_safe_app_admin_capstone/campus_security_admin/campus_secu
 import 'package:campus_safe_app_admin_capstone/campus_security_admin/home_page.dart';
 import 'package:campus_safe_app_admin_capstone/campus_security_admin/reports_screen.dart';
 import 'package:campus_safe_app_admin_capstone/osa_admin/osa_homepage.dart';
+import 'package:campus_safe_app_admin_capstone/services/web_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -28,6 +29,13 @@ void main() async {
         measurementId: "G-JC184VLS9K",
       ),
     );
+    
+    // Initialize web notifications
+    if (kIsWeb) {
+      WebNotificationService.initialize().catchError((e) {
+        print('Failed to initialize web notifications: $e');
+      });
+    }
   } else {
     await Firebase.initializeApp();
   }
