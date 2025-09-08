@@ -4,21 +4,12 @@ import 'package:campus_safe_app_admin_capstone/reusable_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../services/notify_services.dart';
-import '../services/add_security_guard_services.dart'; // For image upload
+import '../services/announcement_services.dart';
 import 'package:file_picker/file_picker.dart'; // For image picker
-import 'dart:io';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
-import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import '../widgets/skeleton_loader.dart';
-
-enum AlertTarget { student, facultyStaff, all }
 
 class ThrowAlertsPage extends StatefulWidget {
   const ThrowAlertsPage({super.key});
@@ -29,6 +20,7 @@ class ThrowAlertsPage extends StatefulWidget {
 
 class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
   final TextEditingController _messageController = TextEditingController();
+  final AnnouncementService _announcementService = AnnouncementService();
   bool _isLoading = false;
   AlertTarget _selectedTarget = AlertTarget.all; // Default to all
   String _selectedDateFilter = "All";
@@ -46,14 +38,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
   }
 
   String _getTargetText(AlertTarget target) {
-    switch (target) {
-      case AlertTarget.student:
-        return 'Student';
-      case AlertTarget.facultyStaff:
-        return 'Faculty & Staff';
-      case AlertTarget.all:
-        return 'All Users';
-    }
+    return _announcementService.getTargetText(target);
   }
 
   // Image picker helper - allows selecting an image and storing bytes
@@ -90,62 +75,10 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     });
   }
 
-  Future<void> _sendPushNotification(String message,
-      {String? bigPictureUrl}) async {
-    try {
-      String userType;
-      switch (_selectedTarget) {
-        case AlertTarget.student:
-          userType = "Student"; // Exact match with your userType
-          break;
-        case AlertTarget.facultyStaff:
-          userType = "Faculty & Staff"; // Exact match with your userType
-          break;
-        case AlertTarget.all:
-          // Send to both groups
-          await Future.wait([
-            NotifServices.sendGroupNotification(
-              userType: "Student",
-              heading: "Security Announcement",
-              content: message,
-              bigPicture: bigPictureUrl,
-            ),
-            NotifServices.sendGroupNotification(
-              userType: "Faculty & Staff",
-              heading: "Security Announcement",
-              content: message,
-              bigPicture: bigPictureUrl,
-            ),
-          ]);
-          return;
-      }
-
-      await NotifServices.sendGroupNotification(
-        userType: userType,
-        heading: "Security Announcement",
-        content: message,
-        bigPicture: bigPictureUrl,
-      );
-
-      print('Sending notification to userType: $userType'); // Debug print
-    } catch (e) {
-      print('Push notification error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Announcement saved but notification delivery may have failed: $e'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _throwAlert() async {
     if (_messageController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter an alert message')),
+        const SnackBar(content: Text('Please enter an announcement message')),
       );
       return;
     }
@@ -159,54 +92,28 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     });
 
     try {
-      String? imageUrl;
-
-      // Upload image if one is selected
-      if (_alertImageData != null && _alertImageName != null) {
-        try {
-          final uploadResult =
-              await uploadImage(_alertImageData!, _alertImageName!);
-          imageUrl = uploadResult['secure_url'] as String?;
-        } catch (e) {
-          print('Image upload error: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Image upload failed: $e')),
-            );
-          }
-          // Continue without image if upload fails
-        }
-      }
-
-      // Create alert document with target audience and image URL
-      final alertData = {
-        'message': _messageController.text.trim(),
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': 'active',
-        'target': _selectedTarget.toString().split('.').last,
-        'targetDisplay': _getTargetText(_selectedTarget),
-        if (imageUrl != null) 'imageUrl': imageUrl,
-        if (_alertImageName != null) 'imageName': _alertImageName,
-      };
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('alerts_data')
-          .add(alertData);
-
-      // Send push notification with image
-      await _sendPushNotification(
-        _messageController.text.trim(),
-        bigPictureUrl: imageUrl,
+      // Use the service to create the announcement
+      final result = await _announcementService.createAnnouncement(
+        message: _messageController.text.trim(),
+        target: _selectedTarget,
+        imageData: _alertImageData,
+        imageName: _alertImageName,
       );
 
       if (!mounted) return;
 
-      // Show receipt of the alert sent
-      await _showAlertReceipt(alertData);
+      if (result.success) {
+        // Show receipt of the alert sent
+        await _showAlertReceipt(result.alertData!);
 
-      // Clear the input and image
-      _messageController.clear();
-      _removeAlertImage();
+        // Clear the input and image
+        _messageController.clear();
+        _removeAlertImage();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending alert: ${result.error}')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1521,83 +1428,16 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
   }
 
   Future<int> _getTargetCount(AlertTarget target) async {
-    try {
-      QuerySnapshot query;
-      if (target == AlertTarget.all) {
-        query = await FirebaseFirestore.instance.collection('users').get();
-      } else {
-        String userType =
-            target == AlertTarget.student ? 'Student' : 'Faculty & Staff';
-        query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userType', isEqualTo: userType)
-            .get();
-      }
-      return query.docs.length;
-    } catch (e) {
-      print('Error getting target count: $e');
-      return 0;
-    }
+    return await _announcementService.getTargetCount(target);
   }
 
   Stream<QuerySnapshot> _getFilteredAlertsStream() {
-    Query query = FirebaseFirestore.instance.collection('alerts_data');
-
-    // Apply date filters
-    if (_selectedDateFilter != 'All') {
-      DateTime now = DateTime.now();
-      DateTime startDate;
-      DateTime endDate;
-
-      switch (_selectedDateFilter) {
-        case 'Today':
-          startDate = DateTime(now.year, now.month, now.day);
-          endDate = now;
-          break;
-        case 'Yesterday':
-          startDate = DateTime(now.year, now.month, now.day - 1);
-          endDate = DateTime(now.year, now.month, now.day)
-              .subtract(const Duration(milliseconds: 1));
-          break;
-        case 'Last Week':
-          startDate = DateTime(now.year, now.month, now.day - 7);
-          endDate = now;
-          break;
-        case 'Last Month':
-          startDate = DateTime(now.year, now.month - 1, now.day);
-          endDate = now;
-          break;
-        case 'Custom':
-          if (_customStartDate != null && _customEndDate != null) {
-            startDate = _customStartDate!;
-            endDate = _customEndDate!
-                .add(const Duration(days: 1))
-                .subtract(const Duration(milliseconds: 1));
-          } else {
-            return query
-                .orderBy('timestamp', descending: true)
-                .limit(10)
-                .snapshots();
-          }
-          break;
-        default: // 'All'
-          return query
-              .orderBy('timestamp', descending: true)
-              .limit(10)
-              .snapshots();
-      }
-
-      return query
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .orderBy('timestamp', descending: true)
-          .limit(10)
-          .snapshots();
-    }
-
-    // Default to showing all recent alerts
-    return query.orderBy('timestamp', descending: true).limit(10).snapshots();
+    return _announcementService.getFilteredAlertsStream(
+      selectedDateFilter: _selectedDateFilter,
+      customStartDate: _customStartDate,
+      customEndDate: _customEndDate,
+      limit: 10,
+    );
   }
 
   Future<bool?> _showEditAlertDialog(
@@ -1619,298 +1459,479 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           return Dialog(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.blue.shade50, Colors.white],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 640),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.blue.shade50, Colors.white],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.blue,
-                          size: 22,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.edit,
+                              color: Colors.blue,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Edit Alert',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Edit Alert',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<AlertTarget>(
-                    value: selectedTarget,
-                    decoration: InputDecoration(
-                      labelText: 'Announcement Target',
-                      labelStyle: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.blue.shade300,
-                          width: 1.5,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.blue.shade300,
-                          width: 1.5,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Colors.blue,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: Colors.blue.withOpacity(0.05),
-                      prefixIcon: Icon(
-                        Icons.people,
-                        color: Colors.blue.shade600,
-                        size: 22,
-                      ),
-                    ),
-                    dropdownColor: Colors.white,
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.blue.shade600,
-                    ),
-                    items: AlertTarget.values.map((target) {
-                      return DropdownMenuItem(
-                        value: target,
-                        child: Text(
-                          _getTargetText(target),
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<AlertTarget>(
+                        value: selectedTarget,
+                        decoration: InputDecoration(
+                          labelText: 'Announcement Target',
+                          labelStyle: TextStyle(
+                            color: Colors.blue.shade700,
                             fontWeight: FontWeight.w500,
                           ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue.shade300,
+                              width: 1.5,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue.shade300,
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.blue.withOpacity(0.05),
+                          prefixIcon: Icon(
+                            Icons.people,
+                            color: Colors.blue.shade600,
+                            size: 22,
+                          ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (AlertTarget? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          selectedTarget = newValue;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: editController,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      labelText: 'Announcement Message',
-                      hintText: 'Edit announcement message...',
-                      labelStyle: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      hintStyle: TextStyle(
-                        color: Colors.blue.shade300,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.blue.shade300,
-                          width: 1.5,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.blue.shade300,
-                          width: 1.5,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Colors.blue,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: Colors.blue.withOpacity(0.05),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(
-                            left: 12, right: 8, top: 12, bottom: 12),
-                        child: Icon(
-                          Icons.message,
+                        dropdownColor: Colors.white,
+                        icon: Icon(
+                          Icons.arrow_drop_down,
                           color: Colors.blue.shade600,
-                          size: 22,
                         ),
-                      ),
-                      alignLabelWithHint: true,
-                    ),
-                    cursorColor: Colors.blue,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.blueGrey.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Text(
-                        'Status:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Switch(
-                        value: isActive,
-                        onChanged: isActive
-                            ? (value) {
-                                setState(() {
-                                  isActive = value;
-                                });
-                              }
-                            : null, // Null makes the switch disabled if already inactive
-                        activeColor: Colors.green,
-                        activeTrackColor: Colors.green.withOpacity(0.5),
-                        inactiveThumbColor: Colors.grey,
-                        inactiveTrackColor: Colors.grey.withOpacity(0.5),
-                      ),
-                      Text(
-                        isActive ? 'Active' : 'Inactive',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: isActive
-                              ? Colors.green.shade700
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                      if (!isActive) ...[
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Inactive alerts cannot be reactivated',
-                          child: Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.blueGrey,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (editController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'Announcement message cannot be empty')),
-                            );
-                            return;
-                          }
-
-                          try {
-                            await FirebaseFirestore.instance
-                                .collection('alerts_data')
-                                .doc(docId)
-                                .update({
-                              'message': editController.text.trim(),
-                              'target':
-                                  selectedTarget.toString().split('.').last,
-                              'targetDisplay': _getTargetText(selectedTarget),
-                              'status': isActive ? 'active' : 'inactive',
+                        items: AlertTarget.values.map((target) {
+                          return DropdownMenuItem(
+                            value: target,
+                            child: Text(
+                              _getTargetText(target),
+                              style: TextStyle(
+                                color: Colors.blue.shade800,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (AlertTarget? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              selectedTarget = newValue;
                             });
-                            Navigator.of(context).pop(true);
-                          } catch (e) {
-                            print('Error updating alert: $e');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text('Error updating alert: $e')),
-                            );
-                            Navigator.of(context).pop(false);
                           }
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: editController,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          labelText: 'Announcement Message',
+                          hintText: 'Edit announcement message...',
+                          labelStyle: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
                           ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                          hintStyle: TextStyle(
+                            color: Colors.blue.shade300,
                           ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue.shade300,
+                              width: 1.5,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue.shade300,
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.blue.withOpacity(0.05),
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(
+                                left: 12, right: 8, top: 12, bottom: 12),
+                            child: Icon(
+                              Icons.message,
+                              color: Colors.blue.shade600,
+                              size: 22,
+                            ),
+                          ),
+                          alignLabelWithHint: true,
                         ),
-                        child: const Text('Update'),
+                        cursorColor: Colors.blue,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.blueGrey.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Attached image preview (show imageUrl if available)
+                      Builder(builder: (context) {
+                        final String? imageUrl =
+                            (alert['imageUrl'] as String?)?.trim();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Attached Image',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blueGrey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  color: Colors.grey.shade100,
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 180,
+                                    minHeight: 60,
+                                    maxWidth: double.infinity,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          return Dialog(
+                                            backgroundColor: Colors.transparent,
+                                            insetPadding:
+                                                const EdgeInsets.all(12),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              padding: const EdgeInsets.all(8),
+                                              child: InteractiveViewer(
+                                                panEnabled: true,
+                                                boundaryMargin:
+                                                    const EdgeInsets.all(20),
+                                                child: Image.network(
+                                                  imageUrl,
+                                                  fit: BoxFit.contain,
+                                                  loadingBuilder: (context,
+                                                      child, progress) {
+                                                    if (progress == null)
+                                                      return child;
+                                                    return SizedBox(
+                                                      height: 120,
+                                                      child: Center(
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          value: progress
+                                                                      .expectedTotalBytes !=
+                                                                  null
+                                                              ? progress
+                                                                      .cumulativeBytesLoaded /
+                                                                  (progress
+                                                                          .expectedTotalBytes ??
+                                                                      1)
+                                                              : null,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return Center(
+                                                      child: Text(
+                                                        'Could not load image',
+                                                        style: TextStyle(
+                                                            color: Colors
+                                                                .grey.shade200),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
+                                    child: Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.contain,
+                                      loadingBuilder:
+                                          (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return SizedBox(
+                                          height: 80,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              value: progress
+                                                          .expectedTotalBytes !=
+                                                      null
+                                                  ? progress
+                                                          .cumulativeBytesLoaded /
+                                                      (progress
+                                                              .expectedTotalBytes ??
+                                                          1)
+                                                  : null,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Container(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.broken_image,
+                                                  color: Colors.grey.shade600),
+                                              const SizedBox(width: 8),
+                                              Flexible(
+                                                child: Text(
+                                                  'Could not load image',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade600),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.grey.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.image_not_supported,
+                                        color: Colors.grey.shade600),
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: Text(
+                                        'No image attached.',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                          ],
+                        );
+                      }),
+                      Row(
+                        children: [
+                          Text(
+                            'Status:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Switch(
+                            value: isActive,
+                            onChanged: isActive
+                                ? (value) {
+                                    setState(() {
+                                      isActive = value;
+                                    });
+                                  }
+                                : null, // Null makes the switch disabled if already inactive
+                            activeColor: Colors.green,
+                            activeTrackColor: Colors.green.withOpacity(0.5),
+                            inactiveThumbColor: Colors.grey,
+                            inactiveTrackColor: Colors.grey.withOpacity(0.5),
+                          ),
+                          Text(
+                            isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: isActive
+                                  ? Colors.green.shade700
+                                  : Colors.grey.shade700,
+                            ),
+                          ),
+                          if (!isActive) ...[
+                            const SizedBox(width: 8),
+                            Tooltip(
+                              message: 'Inactive alerts cannot be reactivated',
+                              child: Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.blueGrey,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (editController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Announcement message cannot be empty')),
+                                );
+                                return;
+                              }
+
+                              try {
+                                final result = await _announcementService
+                                    .updateAnnouncement(
+                                  documentId: docId,
+                                  newMessage: editController.text.trim(),
+                                  newTarget: selectedTarget,
+                                  newStatus: isActive ? 'active' : 'inactive',
+                                );
+
+                                if (result.success) {
+                                  Navigator.of(context).pop(true);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error updating alert: ${result.error}')),
+                                  );
+                                }
+                              } catch (e) {
+                                print('Error updating alert: $e');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text('Error updating alert: $e')),
+                                );
+                                Navigator.of(context).pop(false);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            child: const Text('Update'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           );
@@ -2019,22 +2040,12 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
             },
           );
 
-          // Get alerts data based on current filter
-          final List<Map<String, dynamic>> alertsData =
-              alertsSnapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            final timestamp = data['timestamp'] as Timestamp?;
-            final formattedDate = timestamp != null
-                ? DateFormat('MMM d, y HH:mm').format(timestamp.toDate())
-                : 'Time not available';
-
-            return {
-              'message': data['message'] ?? 'No message',
-              'date': formattedDate,
-              'status': data['status'] ?? 'unknown',
-              'target': data['targetDisplay'] ?? 'All Users',
-            };
-          }).toList();
+          // Get alerts data using the service
+          final alertsData = await _announcementService.prepareAlertDataForPDF(
+            selectedDateFilter: _selectedDateFilter,
+            customStartDate: _customStartDate,
+            customEndDate: _customEndDate,
+          );
 
           // Close loading dialog
           Navigator.of(context).pop();
@@ -2178,251 +2189,112 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     );
   }
 
-  // PDF Report Generation
+  // PDF Report Generation - Now uses the service
   Future<void> _generatePDFReport(List<Map<String, dynamic>> alertsData) async {
     try {
-      // Create a PDF document
-      final pdf = pw.Document();
+      // Generate PDF using the service
+      final result = await _announcementService.generatePDFReport(
+        alertsData: alertsData,
+        selectedDateFilter: _selectedDateFilter,
+      );
 
-      // Load the logo image
-      final ByteData logoData = await rootBundle.load('assets/ustpLogo.png');
-      final Uint8List logoBytes = logoData.buffer.asUint8List();
-      final logoImage = pw.MemoryImage(logoBytes);
-
-      // Add a title page
-      pdf.addPage(pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Add logo image to the PDF at the top left
-                pw.Image(logoImage, width: 200, height: 100),
-                pw.SizedBox(height: 20),
-                pw.Center(
-                  child: pw.Column(
+      if (result.success && result.pdfBytes != null) {
+        // Show confirmation dialog before downloading
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      pw.Text(
-                        'Campus Safety Announcements Report',
-                        style: pw.TextStyle(
-                            fontSize: 24, fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                      pw.SizedBox(height: 20),
-                      pw.Text(
-                        'Generated on: ${DateFormat('MMMM d, y HH:mm').format(DateTime.now())}',
-                        style: const pw.TextStyle(
-                          fontSize: 16,
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.blue.shade700,
+                            size: 40,
+                          ),
                         ),
                       ),
-                      pw.SizedBox(height: 10),
-                      pw.Text(
-                        'Filter: $_selectedDateFilter',
-                        style: const pw.TextStyle(
-                          fontSize: 16,
+                      const SizedBox(height: 24),
+                      const Text(
+                        'PDF Report Ready',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      pw.SizedBox(height: 30),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(10),
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border.all(width: 1),
-                          borderRadius:
-                              const pw.BorderRadius.all(pw.Radius.circular(5)),
-                        ),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              'Summary:',
-                              style: pw.TextStyle(
-                                fontSize: 16,
-                                fontWeight: pw.FontWeight.bold,
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Your report has been generated. Would you like to download it now?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            pw.SizedBox(height: 10),
-                            pw.Text(
-                                'Total Announcements: ${alertsData.length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'Active Announcements: ${alertsData.where((alert) => alert['status'] == 'active').length}'),
-                            pw.SizedBox(height: 5),
-                            pw.Text(
-                                'Inactive Announcements: ${alertsData.where((alert) => alert['status'] != 'active').length}'),
-                          ],
-                        ),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.check),
+                            label: const Text('Download'),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _downloadPDF(result.pdfBytes!);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ],
-            );
-          }));
-
-      // Create a table for the alert data
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          header: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Add logo to subsequent pages (smaller size)
-                pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Logo at the top left
-                      pw.Image(logoImage, width: 100, height: 50),
-                      pw.Text(
-                        'Campus Safety Announcements - Details',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ]),
-                pw.SizedBox(height: 5),
-                pw.Divider(),
-              ],
-            );
-          },
-          build: (pw.Context context) {
-            // Create a table
-            return [
-              pw.Table.fromTextArray(
-                headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.grey300,
-                ),
-                headerHeight: 30,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                  1: pw.Alignment.centerLeft,
-                  2: pw.Alignment.centerLeft,
-                  3: pw.Alignment.center,
-                },
-                headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.black,
-                ),
-                cellPadding: const pw.EdgeInsets.all(5),
-                headers: ['Announcement Message', 'Date', 'Target', 'Status'],
-                data: alertsData.map((alert) {
-                  return [
-                    alert['message'],
-                    alert['date'],
-                    alert['target'],
-                    alert['status'] == 'active' ? 'Active' : 'Inactive',
-                  ];
-                }).toList(),
-              ),
-            ];
-          },
-          footer: (pw.Context context) {
-            return pw.Container(
-              alignment: pw.Alignment.centerRight,
-              margin: const pw.EdgeInsets.only(top: 10),
-              child: pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                  fontSize: 12,
-                  color: PdfColors.grey700,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-
-      // Save the PDF
-      final bytes = await pdf.save();
-
-      // Show confirmation dialog before downloading
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.picture_as_pdf,
-                          color: Colors.blue.shade700,
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'PDF Report Ready',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Your report has been generated. Would you like to download it now?',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.check),
-                          label: const Text('Generate'),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _downloadPDF(bytes);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
-          ),
-        );
+          );
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error generating PDF: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       // Show error message if something went wrong
@@ -2438,34 +2310,15 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     }
   }
 
-  // Method to handle the actual download
+  // Method to handle the actual download - Now uses the service
   void _downloadPDF(Uint8List bytes) {
     try {
-      // For web platform, use html for downloading
+      final fileName =
+          'campus_alerts_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+
+      // For web platform, use service method
       if (kIsWeb) {
-        final fileName =
-            'campus_alerts_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-
-        // Create a blob from bytes
-        final blob = html.Blob([bytes], 'application/pdf');
-
-        // Create a URL for the blob
-        final url = html.Url.createObjectUrlFromBlob(blob);
-
-        // Create an anchor element with download attribute
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..style.display = 'none';
-
-        // Add anchor to the body
-        html.document.body?.children.add(anchor);
-
-        // Trigger download and remove anchor
-        anchor.click();
-        html.document.body?.children.remove(anchor);
-
-        // Release the object URL
-        html.Url.revokeObjectUrl(url);
+        _announcementService.downloadPDFWeb(bytes, fileName);
 
         if (mounted) {
           // Show success message
@@ -2477,8 +2330,8 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
           );
         }
       } else {
-        // Mobile file handling approach
-        _handleMobileDownload(bytes);
+        // Mobile file handling approach using service
+        _handleMobileDownload(bytes, fileName);
       }
     } catch (e) {
       if (mounted) {
@@ -2493,161 +2346,54 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
     }
   }
 
-  // Helper method for mobile download
-  Future<void> _handleMobileDownload(Uint8List bytes) async {
+  // Helper method for mobile download - Now uses the service
+  Future<void> _handleMobileDownload(Uint8List bytes, String fileName) async {
     try {
-      // Get the app's documents directory to save the file
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName =
-          'campus_alerts_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-      final file = File('${dir.path}/$fileName');
-
-      // Write the PDF to the file
-      await file.writeAsBytes(bytes);
+      // Use the service to save the PDF
+      final filePath =
+          await _announcementService.savePDFMobile(bytes, fileName);
 
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF report saved to: ${file.path}'),
+            content: Text('PDF report saved to: $filePath'),
             backgroundColor: Colors.green,
             action: SnackBarAction(
               label: 'Open',
               textColor: Colors.white,
               onPressed: () {
-                OpenFile.open(file.path);
+                _announcementService.openPDFFile(filePath);
               },
             ),
           ),
         );
       }
     } catch (e) {
-      print('Path error: $e');
-
-      // Fallback: try to use a different approach with temporary directory
-      try {
-        // Create a simple path in the app's storage
-        final fileName =
-            'campus_alerts_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-        final directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          await directory.create(recursive: true);
-        }
-        final file = File('${directory.path}/$fileName');
-
-        // Write the PDF to the file
-        await file.writeAsBytes(bytes);
-
-        if (mounted) {
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('PDF report saved to Downloads folder: $fileName'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'Open',
-                textColor: Colors.white,
-                onPressed: () {
-                  OpenFile.open(file.path);
-                },
-              ),
-            ),
-          );
-        }
-      } catch (fallbackError) {
-        print('Fallback error: $fallbackError');
-        if (mounted) {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Could not save PDF. Please restart the app and try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      print('Mobile PDF save error: $e');
+      if (mounted) {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Could not save PDF. Please restart the app and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
   // Helper method to get the filtered query (not stream) for reports
   Query _getFilteredAlertsQuery() {
-    Query query = FirebaseFirestore.instance.collection('alerts_data');
-
-    // Apply date filters
-    if (_selectedDateFilter != 'All') {
-      DateTime now = DateTime.now();
-      DateTime startDate;
-      DateTime endDate;
-
-      switch (_selectedDateFilter) {
-        case 'Today':
-          startDate = DateTime(now.year, now.month, now.day);
-          endDate = now;
-          break;
-        case 'Yesterday':
-          startDate = DateTime(now.year, now.month, now.day - 1);
-          endDate = DateTime(now.year, now.month, now.day)
-              .subtract(const Duration(milliseconds: 1));
-          break;
-        case 'Last Week':
-          startDate = DateTime(now.year, now.month, now.day - 7);
-          endDate = now;
-          break;
-        case 'Last Month':
-          startDate = DateTime(now.year, now.month - 1, now.day);
-          endDate = now;
-          break;
-        case 'Custom':
-          if (_customStartDate != null && _customEndDate != null) {
-            startDate = _customStartDate!;
-            endDate = _customEndDate!
-                .add(const Duration(days: 1))
-                .subtract(const Duration(milliseconds: 1));
-          } else {
-            return query.orderBy('timestamp', descending: true);
-          }
-          break;
-        default: // 'All'
-          return query.orderBy('timestamp', descending: true);
-      }
-
-      return query
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .orderBy('timestamp', descending: true);
-    }
-
-    // Default to showing all alerts
-    return query.orderBy('timestamp', descending: true);
+    return _announcementService.getFilteredAlertsQuery(
+      selectedDateFilter: _selectedDateFilter,
+      customStartDate: _customStartDate,
+      customEndDate: _customEndDate,
+    );
   }
 
   Future<Map<String, int>> _getDetailedTargetCount(String target) async {
-    try {
-      int students = 0;
-      int faculty = 0;
-
-      if (target == 'all' || target == 'student') {
-        final studentQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userType', isEqualTo: 'Student')
-            .get();
-        students = studentQuery.docs.length;
-      }
-
-      if (target == 'all' || target == 'facultyStaff') {
-        final facultyQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userType', isEqualTo: 'Faculty & Staff')
-            .get();
-        faculty = facultyQuery.docs.length;
-      }
-
-      return {'students': students, 'faculty': faculty};
-    } catch (e) {
-      print('Error getting detailed target count: $e');
-      return {'students': 0, 'faculty': 0};
-    }
+    return await _announcementService.getDetailedTargetCount(target);
   }
 }

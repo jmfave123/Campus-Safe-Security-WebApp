@@ -1,15 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:async';
 
 class DataAnalyticsService {
   // Simple in-memory cache for AI insights to avoid repeated API calls.
   static final Map<String, String> _aiInsightsCache = {};
+  static const int _maxCacheSize =
+      100; // Limit cache size to prevent memory issues
 
-  /// Fetches AI-powered insights from Gemini API, with caching.
+  // Rate limiting variables
+  static DateTime _lastRequestTime =
+      DateTime.now().subtract(Duration(minutes: 1));
+  static const Duration _minRequestInterval =
+      Duration(seconds: 2); // Increased from 500ms
+  static int _consecutiveErrors = 0;
+  static DateTime? _lastErrorTime;
+
+  /// Manages cache size to prevent memory issues
+  static void _manageCacheSize() {
+    if (_aiInsightsCache.length > _maxCacheSize) {
+      // Remove oldest entries (simple approach - remove first 20 entries)
+      final keysToRemove = _aiInsightsCache.keys.take(20).toList();
+      for (final key in keysToRemove) {
+        _aiInsightsCache.remove(key);
+      }
+    }
+  }
+
+  /// Clears the AI insights cache (useful for testing or manual refresh)
+  static void clearCache() {
+    _aiInsightsCache.clear();
+    _consecutiveErrors = 0;
+    _lastErrorTime = null;
+  }
+
+  /// Fetches AI-powered insights from Gemini API, with enhanced rate limiting and caching.
   Future<String> getAIInsights({
     required List<double> values,
     required List<String> months,
@@ -25,6 +54,58 @@ class DataAnalyticsService {
       return _aiInsightsCache[cacheKey]!;
     }
 
+    // Manage cache size before adding new entries
+    _manageCacheSize();
+
+    // Implement rate limiting before making the request
+    await _waitForRateLimit();
+
+    // Make the API request directly with improved error handling
+    return await _makeAPIRequest(
+        cacheKey, itemLabel, months, values, customPrompt);
+  }
+
+  /// Implements adaptive rate limiting based on recent errors
+  static Future<void> _waitForRateLimit() async {
+    final now = DateTime.now();
+    final timeSinceLastRequest = now.difference(_lastRequestTime);
+
+    // Calculate required delay based on consecutive errors
+    Duration requiredDelay = _minRequestInterval;
+
+    if (_consecutiveErrors > 0) {
+      // Exponential backoff: 2s, 4s, 8s, 16s, max 60s
+      final backoffSeconds = math.min(
+        math.pow(2, _consecutiveErrors + 1).round(),
+        60,
+      );
+      requiredDelay = Duration(seconds: backoffSeconds);
+    }
+
+    // Add extra delay if recent errors occurred
+    if (_lastErrorTime != null &&
+        now.difference(_lastErrorTime!).inMinutes < 5) {
+      requiredDelay = Duration(
+        milliseconds: requiredDelay.inMilliseconds + 3000, // Extra 3s delay
+      );
+    }
+
+    if (timeSinceLastRequest < requiredDelay) {
+      final waitTime = requiredDelay - timeSinceLastRequest;
+      await Future.delayed(waitTime);
+    }
+
+    _lastRequestTime = DateTime.now();
+  }
+
+  /// Makes the actual API request with improved error handling
+  static Future<String> _makeAPIRequest(
+    String cacheKey,
+    String itemLabel,
+    List<String> months,
+    List<double> values,
+    String? customPrompt,
+  ) async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
       return 'AI API key not found.';
@@ -49,15 +130,13 @@ class DataAnalyticsService {
       ]
     });
 
-    // Add a small static delay to every request to help stay under rate limits.
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    const int maxRetries = 3;
-    final rnd = Random();
+    const int maxRetries = 5; // Increased from 3
+    final rnd = math.Random();
 
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         final response = await http.post(url, headers: headers, body: body);
+
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final text =
@@ -66,55 +145,69 @@ class DataAnalyticsService {
             final insight = text.trim();
             // Cache the successful result before returning.
             _aiInsightsCache[cacheKey] = insight;
+            // Reset consecutive errors on success
+            _consecutiveErrors = 0;
             return insight;
           } else {
-            return 'AI did not return any insight.';
+            return 'AI analysis is processing. Please refresh in a moment.';
           }
         }
 
-        // Rate limit handling
+        // Enhanced rate limit handling
         if (response.statusCode == 429) {
-          // If last attempt, return helpful guidance
+          _consecutiveErrors++;
+          _lastErrorTime = DateTime.now();
+
           if (attempt == maxRetries) {
-            return 'AI service is busy (429 Too Many Requests). Please try again in a few moments. If this persists, check your API quota and billing status.';
+            return 'AI insights temporarily unavailable due to high demand. Data analysis is still functional without AI insights.';
           }
-          // Exponential backoff with jitter - increased duration significantly
+
+          // More aggressive exponential backoff for 429 errors
           final backoffMs =
-              (pow(2, attempt) * 2000).toInt() + rnd.nextInt(1500);
+              (math.pow(3, attempt) * 1000).round() + rnd.nextInt(2000);
           await Future.delayed(Duration(milliseconds: backoffMs));
           continue;
         }
 
-        // Server errors: retry a few times
+        // Server errors: retry with longer backoff
         if (response.statusCode >= 500 && response.statusCode < 600) {
+          _consecutiveErrors++;
+          _lastErrorTime = DateTime.now();
+
           if (attempt == maxRetries) {
-            return 'AI server error: ${response.statusCode} - ${response.body}';
+            return 'AI service experiencing issues. Basic analytics remain available.';
           }
-          // Use a slightly longer backoff for server errors
+
           final backoffMs =
-              (pow(2, attempt) * 2000).toInt() + rnd.nextInt(1000);
+              (math.pow(2, attempt) * 2000).round() + rnd.nextInt(1000);
           await Future.delayed(Duration(milliseconds: backoffMs));
           continue;
         }
 
-        // Other client errors: return body if possible
-        String errBody = response.body;
-        try {
-          final parsed = jsonDecode(response.body);
-          if (parsed is Map && parsed.containsKey('error')) {
-            errBody = parsed['error'].toString();
-          }
-        } catch (_) {}
-        return 'AI request failed: ${response.statusCode} - $errBody';
+        // Client errors - don't retry these
+        if (response.statusCode >= 400 && response.statusCode < 500) {
+          return 'AI service configuration issue. Please contact administrator.';
+        }
+
+        // Other errors
+        return 'AI analysis temporarily unavailable. Core functionality remains operational.';
       } catch (e) {
-        if (attempt == maxRetries) return 'AI request error: $e';
-        final jitter = rnd.nextInt(500) + 500;
-        await Future.delayed(Duration(milliseconds: 1500 + jitter));
+        _consecutiveErrors++;
+        _lastErrorTime = DateTime.now();
+
+        if (attempt == maxRetries) {
+          return 'Network connectivity issue affecting AI insights. Dashboard data remains accurate.';
+        }
+
+        // Progressive backoff for network errors
+        final jitter = rnd.nextInt(1000) + 1000;
+        await Future.delayed(
+            Duration(milliseconds: 2000 + (attempt * 1000) + jitter));
         continue;
       }
     }
 
-    return 'AI request failed after $maxRetries retries.';
+    return 'AI insights temporarily unavailable. Please refresh the page in a few moments.';
   }
 
   /// Aggregates monthly counts from Firestore documents

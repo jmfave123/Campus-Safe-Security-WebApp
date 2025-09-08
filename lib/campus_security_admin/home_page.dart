@@ -329,7 +329,8 @@ class _HomePageState extends State<HomePage> {
     // Request web notification permission if on web and not granted
     if (kIsWeb) {
       try {
-        final hasPermission = await WebNotificationService.areNotificationsEnabled();
+        final hasPermission =
+            await WebNotificationService.areNotificationsEnabled();
         if (!hasPermission) {
           await _requestWebNotificationPermission();
         }
@@ -459,22 +460,23 @@ class _HomePageState extends State<HomePage> {
     if (!kIsWeb) return;
 
     try {
-      final hasPermission = await WebNotificationService.areNotificationsEnabled();
-      
+      final hasPermission =
+          await WebNotificationService.areNotificationsEnabled();
+
       if (!hasPermission) {
         // Show a friendly dialog before requesting permission
         final shouldRequest = await _showPermissionDialog();
-        
+
         if (shouldRequest == true) {
           // Try OneSignal first
           bool granted = await WebNotificationService.requestPermission();
-          
+
           // If OneSignal fails, try native browser API
           if (!granted) {
             print('OneSignal permission failed, trying native API...');
             granted = await WebNotificationService.requestNativePermission();
           }
-          
+
           if (granted) {
             _showNotificationSuccessSnackBar();
           } else {
@@ -554,7 +556,8 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Icons.info, color: Colors.white),
             const SizedBox(width: 8),
-            const Text('You can enable notifications later in browser settings.'),
+            const Text(
+                'You can enable notifications later in browser settings.'),
           ],
         ),
         backgroundColor: Colors.orange,
@@ -840,7 +843,8 @@ class _HomePageState extends State<HomePage> {
                           setState(() => _selectedIndex = 1);
                           AuditWrapper.instance.logPageAccess(1);
                         }),
-                        buildNavItem(2, 'Announcements', Icons.warning_outlined,
+                        buildNavItem(
+                            2, 'Announcements', Icons.announcement_outlined,
                             isSelected: _selectedIndex == 2, onTap: () {
                           setState(() => _selectedIndex = 2);
                           AuditWrapper.instance.logPageAccess(2);

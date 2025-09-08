@@ -29,7 +29,7 @@ void main() async {
         measurementId: "G-JC184VLS9K",
       ),
     );
-    
+
     // Initialize web notifications
     if (kIsWeb) {
       WebNotificationService.initialize().catchError((e) {
