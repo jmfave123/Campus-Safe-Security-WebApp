@@ -39,12 +39,12 @@
 /// // Get statistics
 /// final stats = await service.getAnnouncementStats();
 /// ```
+library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'dart:typed_data';
 import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -269,6 +269,7 @@ class AnnouncementService {
     required String newMessage,
     required AlertTarget newTarget,
     required String newStatus,
+    bool resendNotification = false, // New parameter to control resending
   }) async {
     try {
       final updateData = {
@@ -283,6 +284,30 @@ class AnnouncementService {
           .collection('alerts_data')
           .doc(documentId)
           .update(updateData);
+
+      // Send push notification if requested and status is active
+      if (resendNotification && newStatus == 'active') {
+        try {
+          // Get the image URL from the existing document if it exists
+          final doc =
+              await _firestore.collection('alerts_data').doc(documentId).get();
+          String? imageUrl;
+          if (doc.exists) {
+            final data = doc.data() as Map<String, dynamic>;
+            imageUrl = data['imageUrl'] as String?;
+          }
+
+          await sendPushNotification(
+            newMessage.trim(),
+            newTarget,
+            bigPictureUrl: imageUrl,
+          );
+        } catch (notificationError) {
+          print(
+              'Error sending notification for updated announcement: $notificationError');
+          // Don't fail the entire update if notification fails
+        }
+      }
 
       return AnnouncementUpdateResult(success: true);
     } catch (e) {

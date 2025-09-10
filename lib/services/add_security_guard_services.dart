@@ -89,3 +89,13 @@ Future<bool> updateGuard(String uid, Map<String, dynamic> updates) async {
     return false;
   }
 }
+
+// Stub for disabling a guard (no backend logic implemented here)
+Future<void> disableGuard(String uid) async {
+  // Intentionally left blank: implement server-side disable logic.
+}
+
+// Stub for deleting a guard (no backend logic implemented here)
+Future<void> deleteGuard(String uid) async {
+  // Intentionally left blank: implement server-side delete logic.
+}

@@ -716,6 +716,69 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
+              // Three-dot menu for more actions
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (value) async {
+                  if (value == 'disable') {
+                    // Show confirmation dialog for disable
+                    final confirmed = await _showConfirmationDialog(
+                      title: 'Confirm Disable',
+                      message:
+                          'Are you sure you want to disable this guard? They will no longer have access to the system.',
+                      actionButtonText: 'Disable',
+                      actionButtonColor: Colors.orange,
+                    );
+
+                    if (confirmed) {
+                      await disableGuard(doc.id); // Call stub from service
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Disable action triggered (not implemented)')),
+                        );
+                      }
+                    }
+                  } else if (value == 'delete') {
+                    // Show confirmation dialog for delete
+                    final confirmed = await _showConfirmationDialog(
+                      title: 'Confirm Delete',
+                      message:
+                          'Are you sure you want to delete this guard? This action cannot be undone.',
+                      actionButtonText: 'Delete',
+                      actionButtonColor: Colors.red,
+                    );
+
+                    if (confirmed) {
+                      await deleteGuard(doc.id); // Call stub from service
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Delete action triggered (not implemented)')),
+                        );
+                      }
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'disable',
+                    child: ListTile(
+                      leading: Icon(Icons.block, color: Colors.orange),
+                      title: Text('Disable'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      leading: Icon(Icons.delete, color: Colors.red),
+                      title: Text('Delete'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1261,6 +1324,36 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     if (dt == null) return null;
 
     return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+  }
+
+  // Reusable confirmation dialog for actions like disable/delete
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String message,
+    required String actionButtonText,
+    required Color actionButtonColor,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              actionButtonText,
+              style: TextStyle(color: actionButtonColor),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
   }
 
   @override

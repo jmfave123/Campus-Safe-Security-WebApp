@@ -1451,6 +1451,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
 
     String currentStatus = alert['status'] ?? 'active';
     bool isActive = currentStatus == 'active';
+    bool resendNotification = false; // New state variable for resend option
 
     final result = await showDialog<bool>(
       context: context,
@@ -1687,8 +1688,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                                   fit: BoxFit.contain,
                                                   loadingBuilder: (context,
                                                       child, progress) {
-                                                    if (progress == null)
+                                                    if (progress == null) {
                                                       return child;
+                                                    }
                                                     return SizedBox(
                                                       height: 120,
                                                       child: Center(
@@ -1850,6 +1852,58 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           ],
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      // Add resend notification checkbox
+                      if (isActive) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: resendNotification,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    resendNotification = value ?? false;
+                                  });
+                                },
+                                activeColor: Colors.blue,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Resend notification to users',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Send push notification with updated announcement',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -1890,10 +1944,19 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                   newMessage: editController.text.trim(),
                                   newTarget: selectedTarget,
                                   newStatus: isActive ? 'active' : 'inactive',
+                                  resendNotification: resendNotification,
                                 );
 
                                 if (result.success) {
                                   Navigator.of(context).pop(true);
+                                  // Show a single success message (always)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Announcement updated successfully!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(

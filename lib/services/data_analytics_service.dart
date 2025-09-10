@@ -14,7 +14,7 @@ class DataAnalyticsService {
 
   // Rate limiting variables
   static DateTime _lastRequestTime =
-      DateTime.now().subtract(Duration(minutes: 1));
+      DateTime.now().subtract(const Duration(minutes: 1));
   static const Duration _minRequestInterval =
       Duration(seconds: 2); // Increased from 500ms
   static int _consecutiveErrors = 0;

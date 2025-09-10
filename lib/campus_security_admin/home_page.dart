@@ -497,11 +497,11 @@ class _HomePageState extends State<HomePage> {
       barrierDismissible: false, // Make it modal
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.notifications_active, color: kPrimaryColor),
-              const SizedBox(width: 8),
-              const Text('Enable Notifications'),
+              SizedBox(width: 8),
+              Text('Enable Notifications'),
             ],
           ),
           content: const Text(
@@ -534,16 +534,16 @@ class _HomePageState extends State<HomePage> {
   // Show success message
   void _showNotificationSuccessSnackBar() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Row(
           children: [
             Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            const Text('Notifications enabled successfully!'),
+            SizedBox(width: 8),
+            Text('Notifications enabled successfully!'),
           ],
         ),
         backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
+        duration: Duration(seconds: 3),
       ),
     );
   }
@@ -551,17 +551,16 @@ class _HomePageState extends State<HomePage> {
   // Show denied message
   void _showNotificationDeniedSnackBar() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Row(
           children: [
             Icon(Icons.info, color: Colors.white),
-            const SizedBox(width: 8),
-            const Text(
-                'You can enable notifications later in browser settings.'),
+            SizedBox(width: 8),
+            Text('You can enable notifications later in browser settings.'),
           ],
         ),
         backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 4),
+        duration: Duration(seconds: 4),
       ),
     );
   }
