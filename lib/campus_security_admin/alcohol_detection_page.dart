@@ -636,6 +636,9 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                           label: Text('BAC',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
+                          label: Text('Added By',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
                           label: Text('Status',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
@@ -684,6 +687,7 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         _buildDataCell(Icons.school, data['studentCourse'] ?? 'N/A'),
         _buildDataCell(Icons.sync, syncedTimeLabel),
         _buildDataCell(Icons.speed, '${data['bac'] ?? 'N/A'}'),
+        _buildDataCell(Icons.person_add, data['addedByName'] ?? 'N/A'),
         DataCell(_buildStatusChip(
             data['status'] ?? AlcoholDetectionService.statusActive)),
         DataCell(
@@ -924,6 +928,8 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                       children: [
                         _buildStudentInfoSection(detection),
                         const SizedBox(height: 16),
+                        _buildAddedByInfoSection(detection),
+                        const SizedBox(height: 16),
                         _buildDetectionInfoSectionWithTime(
                             detection, detectionTimeLabel, syncedTimeLabel),
                         if (showNoTimeNote)
@@ -1019,6 +1025,24 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           icon: Icons.school,
           label: 'Department',
           value: detection['studentCourse'] ?? 'Unknown',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddedByInfoSection(Map<String, dynamic> detection) {
+    return _buildInfoCard(
+      'Added By Information',
+      [
+        _buildDetailTile(
+          icon: Icons.person_add,
+          label: 'Added By Name',
+          value: detection['addedByName'] ?? 'Unknown',
+        ),
+        _buildDetailTile(
+          icon: Icons.email,
+          label: 'Added By Email',
+          value: detection['addedByEmail'] ?? 'Unknown',
         ),
       ],
     );

@@ -306,6 +306,8 @@ class AlcoholDetectionService {
       'Detection Time',
       'Synced Time to Database',
       'BAC',
+      'Added By Name',
+      'Added By Email',
       'Status'
     ];
 
@@ -350,6 +352,8 @@ class AlcoholDetectionService {
         detectionTime,
         syncedTime,
         '${data['bac'] ?? 'N/A'}',
+        data['addedByName'] ?? 'N/A',
+        data['addedByEmail'] ?? 'N/A',
         data['status'] ?? statusActive,
       ];
     }).toList();
@@ -370,7 +374,9 @@ class AlcoholDetectionService {
         3: pw.Alignment.center,
         4: pw.Alignment.center,
         5: pw.Alignment.center,
-        6: pw.Alignment.center,
+        6: pw.Alignment.centerLeft,
+        7: pw.Alignment.centerLeft,
+        8: pw.Alignment.center,
       },
     );
   }
