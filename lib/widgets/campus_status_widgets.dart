@@ -130,7 +130,7 @@ class _CampusStatusControlState extends State<CampusStatusControl> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<CampusStatusLevel>(
-            value: _selectedLevel,
+            initialValue: _selectedLevel,
             decoration: InputDecoration(
               labelText: 'Status Level',
               border: OutlineInputBorder(
@@ -185,7 +185,7 @@ class _CampusStatusControlState extends State<CampusStatusControl> {
                   reason: _reasonController.text.trim(),
                   previousStatus: widget.currentStatus.level.name,
                 );
-                
+
                 widget.onStatusUpdate(
                     _selectedLevel, _reasonController.text.trim());
               } else {

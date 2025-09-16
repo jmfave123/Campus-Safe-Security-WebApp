@@ -1,10 +1,13 @@
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // enable image picker for profile selection
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/add_security_guard_services.dart';
+import '../OTP/smschef_client.dart';
 
 // Local theme color used across admin pages
 const Color kPrimaryColor = Color(0xFF1A1851);
@@ -36,6 +39,57 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
   // dialog context when dialogs are shown
   BuildContext? _dialogContext;
+
+  // transient loading state used when sending OTP
+  bool _isSendingOtp = false;
+  // transient loading state used when verifying OTP
+  bool _isVerifying = false;
+  // Resend cooldown (seconds) and timer
+  final int _resendCooldownSeconds = 30;
+  int _resendRemaining = 0;
+  Timer? _resendTimer;
+
+  // Send OTP to the provided phone using SmsChefClient. Reads API key from env.
+  Future<void> _sendOtpToPhone(String phone, {int expire = 600}) async {
+    final apiKey =
+        dotenv.env['SMS_CHEF_API'] ?? dotenv.env['SMS_CHEF_API'.toUpperCase()];
+    if (apiKey == null || apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SMS_CHEF_API not configured'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
+    final client = SmsChefClient(
+        baseUrl: 'https://www.cloud.smschef.com', apiSecret: apiKey);
+    try {
+      final res = await client.sendOtp(phone: phone, expire: expire);
+      // Do not log or display the OTP. Use only status/message for UX.
+      if (res.status == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: const [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(child: Text('OTP sent successfully')),
+          ]),
+          backgroundColor: Colors.green.shade600,
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to send OTP: ${res.message}'),
+          backgroundColor: Colors.red.shade600,
+        ));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error sending OTP: $e'),
+        backgroundColor: Colors.red.shade600,
+      ));
+    } finally {
+      client.dispose();
+    }
+  }
 
   // Image picker helper - allows selecting an image and storing bytes
   Future<void> _pickImage({Function? onUpdate}) async {
@@ -102,6 +156,38 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                       });
                     },
                     child: const Text('Reset'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isSendingOtp
+                        ? null
+                        : () async {
+                            final phone = _phoneController.text.trim();
+                            if (phone.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter a phone number'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            // update dialog-local state so the button can show a loader
+                            setDialogState(() => _isSendingOtp = true);
+                            try {
+                              await _sendOtpToPhone(phone);
+                            } finally {
+                              setDialogState(() => _isSendingOtp = false);
+                            }
+                          },
+                    child: _isSendingOtp
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Send OTP'),
                   ),
                 ],
               )
@@ -1130,12 +1216,13 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
-                            // perform save with edited fields
-                            Navigator.pop(context);
-                            await _saveGuardChanges(
-                                data['uid'] ?? docIdFromData(data),
-                                name: nameController.text.trim(),
-                                phone: phoneController.text.trim());
+                            // perform save with OTP verification flow
+                            final targetDocId =
+                                data['uid'] ?? docIdFromData(data);
+                            final newName = nameController.text.trim();
+                            final newPhone = phoneController.text.trim();
+                            await _saveWithOtpFlow(targetDocId,
+                                name: newName, phone: newPhone);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
@@ -1198,7 +1285,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
   // Upload selected image (if any) and save changes to guard document
   Future<void> _saveGuardChanges(String docId,
-      {String? name, String? phone}) async {
+      {String? name, String? phone, bool markPhoneVerified = false}) async {
     if (docId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Unable to save: missing document id'),
@@ -1230,6 +1317,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
       if (uploadedUrl != null) updates['profileImageUrl'] = uploadedUrl;
       if (name != null && name.isNotEmpty) updates['name'] = name;
       if (phone != null && phone.isNotEmpty) updates['phone'] = phone;
+      if (markPhoneVerified) updates['isPhoneNumberVerified'] = true;
 
       final success = await updateGuard(docId, updates);
 
@@ -1262,6 +1350,224 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
           backgroundColor: Colors.red.shade600,
         ));
       }
+    }
+  }
+
+  // Send OTP to `phone`, prompt admin to input OTP, verify it, then save changes.
+  Future<void> _saveWithOtpFlow(String docId,
+      {String? name, String? phone}) async {
+    if (phone == null || phone.isEmpty) {
+      // If phone not provided, just save normally
+      await _saveGuardChanges(docId, name: name, phone: phone);
+      return;
+    }
+
+    // Check existing guard document for phone verification status
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('securityGuard_user')
+          .doc(docId);
+      final snapshot = await docRef.get();
+      if (snapshot.exists) {
+        final currentPhone = snapshot.data()?['phone']?.toString() ?? '';
+        final isVerified = snapshot.data()?['isPhoneNumberVerified'] == true;
+        // If phone hasn't changed and is already verified, skip OTP flow
+        if (isVerified && currentPhone == phone) {
+          await _saveGuardChanges(docId,
+              name: name, phone: phone, markPhoneVerified: true);
+          return;
+        }
+        // If phone changed, clear the verification flag so we can reverify
+        if (currentPhone != phone && isVerified) {
+          await updateGuard(docId, {'isPhoneNumberVerified': false});
+        }
+      }
+    } catch (e) {
+      // If Firestore read fails, continue to OTP flow (fail-open)
+    }
+
+    // Send OTP
+    setState(() => _isSendingOtp = true);
+    try {
+      await _sendOtpToPhone(phone, expire: 600);
+    } finally {
+      setState(() => _isSendingOtp = false);
+    }
+
+    // Prompt admin to enter OTP
+    final otpController = TextEditingController();
+    final verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                'An OTP was sent to the provided phone. Enter it to verify.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'OTP'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: (_resendRemaining > 0 || _isSendingOtp)
+                ? null
+                : () async {
+                    // Resend OTP with cooldown
+                    setState(() {
+                      _isSendingOtp = true;
+                      _resendRemaining = 30;
+                    });
+                    _resendTimer?.cancel();
+                    _resendTimer =
+                        Timer.periodic(const Duration(seconds: 1), (t) {
+                      setState(() {
+                        _resendRemaining = _resendRemaining - 1;
+                        if (_resendRemaining <= 0) {
+                          t.cancel();
+                        }
+                      });
+                    });
+                    try {
+                      await _sendOtpToPhone(phone, expire: 600);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('OTP resent'),
+                      ));
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Failed to resend OTP: $e'),
+                        backgroundColor: Colors.red.shade600,
+                      ));
+                    } finally {
+                      setState(() => _isSendingOtp = false);
+                    }
+                  },
+            child: _isSendingOtp
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : (_resendRemaining > 0
+                    ? Text('Resend ($_resendRemaining)')
+                    : const Text('Resend')),
+          ),
+          ElevatedButton(
+            onPressed: _isVerifying
+                ? null
+                : () async {
+                    final otp = otpController.text.trim();
+                    if (otp.isEmpty) return;
+                    setState(() => _isVerifying = true);
+                    // verify
+                    final apiKey = dotenv.env['SMS_CHEF_API'];
+                    if (apiKey == null || apiKey.isEmpty) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('SMS_CHEF_API not configured'),
+                        backgroundColor: Colors.red,
+                      ));
+                      setState(() => _isVerifying = false);
+                      return;
+                    }
+
+                    final client = SmsChefClient(
+                        baseUrl: 'https://www.cloud.smschef.com',
+                        apiSecret: apiKey);
+                    try {
+                      final resp =
+                          await client.verifyOtp(otp: otp, phone: phone);
+                      // Debug output in debug builds to help diagnose mismatches
+                      assert(() {
+                        // ignore: avoid_print
+                        print(
+                            'SmsChef verify response: status=${resp.status} message=${resp.message} data=${resp.data} verified=${resp.verified} verifiedLoosely=${resp.verifiedLoosely}');
+                        return true;
+                      }());
+
+                      // Accept strict or loose verified states. If the server
+                      // says the OTP was already verified, show a friendly
+                      // message and proceed.
+                      if (resp.verified) {
+                        assert(() {
+                          print('verify: strict verified');
+                          return true;
+                        }());
+                        Navigator.pop(context, true);
+                      } else if (resp.verifiedLoosely) {
+                        assert(() {
+                          print('verify: loosely verified');
+                          return true;
+                        }());
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text('OTP already verified — proceeding'),
+                          backgroundColor: Colors.green,
+                        ));
+                        Navigator.pop(context, true);
+                      } else if (resp.status == 200 &&
+                          resp.message.toLowerCase().contains('verified')) {
+                        // Defensive: some server responses set data=false but include
+                        // a textual confirmation. Accept that as success.
+                        assert(() {
+                          print('verify: status200+message contains verified');
+                          return true;
+                        }());
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text(
+                              'OTP verified (server message) — proceeding'),
+                          backgroundColor: Colors.green,
+                        ));
+                        Navigator.pop(context, true);
+                      } else {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content:
+                              Text('OTP verification failed: ${resp.message}'),
+                          backgroundColor: Colors.red,
+                        ));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Error verifying OTP: $e'),
+                        backgroundColor: Colors.red.shade600,
+                      ));
+                    } finally {
+                      client.dispose();
+                      setState(() => _isVerifying = false);
+                    }
+                  },
+            child: _isVerifying
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Verify'),
+          ),
+        ],
+      ),
+    );
+
+    if (verified == true) {
+      // proceed to save
+      await _saveGuardChanges(docId,
+          name: name, phone: phone, markPhoneVerified: true);
+    } else {
+      // do nothing; admin cancelled or verification failed
     }
   }
 

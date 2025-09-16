@@ -582,7 +582,7 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                     ),
                                     const SizedBox(height: 16),
                                     DropdownButtonFormField<String>(
-                                      value: _selectedUserType,
+                                      initialValue: _selectedUserType,
                                       decoration: InputDecoration(
                                         labelText: 'User Type',
                                         labelStyle: TextStyle(
@@ -719,7 +719,7 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                     Expanded(
                                       flex: 1,
                                       child: DropdownButtonFormField<String>(
-                                        value: _selectedUserType,
+                                        initialValue: _selectedUserType,
                                         decoration: InputDecoration(
                                           labelText: 'User Type',
                                           labelStyle: TextStyle(
