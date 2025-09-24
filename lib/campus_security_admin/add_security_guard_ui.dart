@@ -68,7 +68,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
       // Do not log or display the OTP. Use only status/message for UX.
       if (res.status == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Row(children: const [
+          content: const Row(children: [
             Icon(Icons.check_circle, color: Colors.white),
             SizedBox(width: 12),
             Expanded(child: Text('OTP sent successfully')),

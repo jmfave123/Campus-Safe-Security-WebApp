@@ -3,6 +3,7 @@
 /// Exposes `generateNumericOtp` which returns a string of numeric digits
 /// of the requested length (minimum 6). Uses `Random.secure()` when
 /// available for better randomness.
+library;
 
 import 'dart:math';
 

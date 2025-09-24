@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // isAdmin checks existence of an admin_users doc for the signed-in uid
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/admin_users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // isSecurityGuard checks existence of a security guard doc for the signed-in uid
+    function isSecurityGuard() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/securityGuard_user/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/securityGuard_user/$(request.auth.uid)).data.isVerifiedByAdmin == 'true';
+    }
+
+    // Emergency contacts collection
+    match /user_contact/{contactId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Report notifications collection
+    match /reports_notifications_for_users/{notificationId} {
+      // Users can read and update (mark as read) only their own notifications
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      // Only admins can create/delete notifications
+      allow create, delete: if isAdmin();
+    }
+
+    // General notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if isAdmin();
+    }
+
+    // Simplified alert access rule
+    match /alerts_data/{alertId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Breathalyzer notifications collection
+    match /notification_from_breatheanalyzer/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || isSecurityGuard();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Allow querying by idNumber for login purposes
+      allow list: if true;  // Allow unauthenticated queries for login
+      // For individual document access
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Admin users collection - Critical for admin verification
+    match /admin_users/{userId} {
+      // Allow reading admin doc for verification during login (owner)
+      allow get: if request.auth != null && request.auth.uid == userId;
+      // Only admins can list or modify admin users
+      allow list, write: if isAdmin();
+    }
+
+    // Campus security admin collection
+    match /campus_security_admin/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list, write: if isAdmin();
+    }
+
+    // Reports collection
+    match /reports_to_campus_security/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Users log collection
+    match /users_log/{logId} {
+      allow create: if isAuthenticated() &&
+                   request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+                 (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Violation reports collection
+    match /violation_reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+                 (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+    }
+
+    // Alcohol detection data collection
+    match /alcohol_detection_data/{detectionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || isSecurityGuard();
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+                 (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // User settings collection
+    match /user_settings/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // System settings collection
+    match /system_settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Admin notifications collection - Updated to allow security guards access
+    match /notification_to_admin/{notificationId} {
+      // Users can create notifications for admins
+      allow create: if isAuthenticated();
+      // Admins and security guards can read, update, or delete notifications
+      allow read, update, delete: if isAdmin() || isSecurityGuard();
+    }
+
+    // Security guard users collection
+    // Admins can list/read/update/delete. Owners can create their own doc and read/update limited fields.
+    match /securityGuard_user/{uid} {
+      // Creation: only the authenticated user may create their own document,
+      // must include uid and email, and must set isVerifiedByAdmin to 'pending'.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.email is string
+                    && request.resource.data.isVerifiedByAdmin == 'pending';
+
+      // Read: owner or admin
+      allow get: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      // Admins can list; owners typically should not list all docs
+      allow list: if isAdmin();
+
+      // Update:
+      // - Admins can update everything.
+      // - Owners can update their own doc but cannot change isVerifiedByAdmin
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && request.auth.uid == uid
+                        && request.resource.data.uid == uid
+                        // ensure owner cannot change admin verification status
+                        && request.resource.data.isVerifiedByAdmin == resource.data.isVerifiedByAdmin);
+
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+
+    // Allow admins to access all data
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+  }
+}

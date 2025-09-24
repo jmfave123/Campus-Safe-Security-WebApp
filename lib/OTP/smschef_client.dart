@@ -122,8 +122,9 @@ class SmsChefClient {
       if (d.containsKey('otp')) d['otp'] = '••••';
       safe['data'] = d;
     }
-    if (safe['message'] is String)
+    if (safe['message'] is String) {
       safe['message'] = _redactMessage(safe['message']);
+    }
     try {
       // Use print so logs appear in debug console; avoid logging secrets.
       print(
