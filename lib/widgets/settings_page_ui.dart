@@ -659,9 +659,9 @@ class _AccountSecurityWidgetState extends State<AccountSecurityWidget> {
   final _confirmPasswordController = TextEditingController();
 
   bool _isChangingPassword = false;
-  bool _obscureCurrentPassword = true;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
+  final bool _obscureCurrentPassword = true;
+  final bool _obscureNewPassword = true;
+  final bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {

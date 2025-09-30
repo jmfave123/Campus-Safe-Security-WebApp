@@ -754,7 +754,11 @@ class _HomePageState extends State<HomePage> {
                         offset: const Offset(0, 40),
                         onSelected: (String value) {
                           if (value == 'profile') {
-                            // Handle profile navigation
+                            // Navigate to Settings page (index 8) while keeping sidebar
+                            setState(() {
+                              _selectedIndex = 8;
+                            });
+                            AuditWrapper.instance.logPageAccess(8);
                           } else if (value == 'logout') {
                             _logout();
                           }

@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, unnecessary_import, unused_local_variable, use_build_context_synchronously, unused_element, deprecated_member_use
 
 import 'package:campus_safe_app_admin_capstone/reusable_widget.dart';
+import 'package:campus_safe_app_admin_capstone/widgets/skeleton_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +10,7 @@ import 'package:file_picker/file_picker.dart'; // For image picker
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import '../widgets/skeleton_loader.dart';
+import '../widgets/announcement_cards.dart';
 
 class ThrowAlertsPage extends StatefulWidget {
   const ThrowAlertsPage({super.key});
@@ -30,6 +31,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
   // Image-related state variables
   Uint8List? _alertImageData;
   String? _alertImageName;
+
+  // Collapsible section state
+  bool _isCollapsed = false;
 
   @override
   void dispose() {
@@ -461,481 +465,554 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
 
                 const SizedBox(height: 24),
 
-                // Statistics Cards
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return constraints.maxWidth < 600
-                        ? Column(
-                            children: [
-                              buildStatCardAlerts(
-                                'Total Announcements',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('alerts_data')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SkeletonStatCard();
-                                    }
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.notifications_active,
-                                const Color(0xFF4285F4),
-                              ),
-                              const SizedBox(height: 16),
-                              buildStatCardAlerts(
-                                'Active Announcements',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('alerts_data')
-                                      .where('status', isEqualTo: 'active')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SkeletonStatCard();
-                                    }
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.warning_rounded,
-                                const Color(0xFFFF9800),
-                              ),
-                              const SizedBox(height: 16),
-                              buildStatCardAlerts(
-                                'Announcement Channels',
-                                const Text(
-                                  'Mobile App',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                Icons.phone_android,
-                                const Color(0xFF0F9D58),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: buildStatCardAlerts(
-                                  'Total Announcements',
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('alerts_data')
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const SkeletonStatCard();
-                                      }
-                                      return Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data?.docs.length ?? 0}'
-                                            : 'Loading...',
-                                        style: const TextStyle(
-                                          fontSize: 30,
-                                          fontWeight: FontWeight.bold,
-                                          color:
-                                              Color.fromARGB(255, 227, 26, 32),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Icons.notifications_active,
-                                  const Color.fromARGB(255, 227, 26, 32),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: buildStatCardAlerts(
-                                  'Active Announcements',
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('alerts_data')
-                                        .where('status', isEqualTo: 'active')
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const SkeletonStatCard();
-                                      }
-                                      return Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data?.docs.length ?? 0}'
-                                            : 'Loading...',
-                                        style: const TextStyle(
-                                          fontSize: 30,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFFFF9800),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Icons.warning_rounded,
-                                  const Color(0xFFFF9800),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: buildStatCardAlerts(
-                                  'Announcement Channel',
-                                  const Text(
-                                    'Mobile App',
-                                    style: TextStyle(
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0F9D58),
-                                    ),
-                                  ),
-                                  Icons.phone_android,
-                                  const Color(0xFF0F9D58),
-                                ),
-                              ),
-                            ],
-                          );
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                // Send New Alert Card
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.1),
-                        spreadRadius: 0,
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                // Collapsible arrow button
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isCollapsed = !_isCollapsed;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.blue.shade200),
                       ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.add_alert,
-                                color: Colors.red,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Send an Announcement',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        DropdownButtonFormField<AlertTarget>(
-                          value: _selectedTarget,
-                          decoration: InputDecoration(
-                            labelText: 'Send Announcement To',
-                            labelStyle: TextStyle(
-                              color: Colors.blueGrey.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: Colors.blueGrey.withOpacity(0.2),
-                                  width: 1.5),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: Colors.blueGrey.withOpacity(0.2),
-                                  width: 1.5),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Colors.blue, width: 2),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            prefixIcon: Icon(Icons.people,
-                                color: Colors.blueGrey.shade600, size: 22),
-                          ),
-                          dropdownColor: Colors.white,
-                          icon: Icon(Icons.arrow_drop_down,
-                              color: Colors.blueGrey.shade600),
-                          items: AlertTarget.values.map((target) {
-                            return DropdownMenuItem(
-                              value: target,
-                              child: Text(
-                                _getTargetText(target),
-                                style: TextStyle(
-                                  color: Colors.blueGrey.shade800,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (AlertTarget? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedTarget = newValue;
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        TextField(
-                          controller: _messageController,
-                          maxLines: 5,
-                          decoration: InputDecoration(
-                            hintText: 'Enter announcement message...',
-                            labelText: 'Announcement Message',
-                            hintStyle:
-                                TextStyle(color: Colors.blueGrey.shade300),
-                            labelStyle: TextStyle(
-                              color: Colors.blueGrey.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: Colors.blueGrey.withOpacity(0.2),
-                                  width: 1.5),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: Colors.blueGrey.withOpacity(0.2),
-                                  width: 1.5),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Colors.blue, width: 2),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            prefixIcon: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 12, right: 8, top: 12, bottom: 12),
-                              child: Icon(Icons.message,
-                                  color: Colors.blueGrey.shade600, size: 22),
-                            ),
-                            alignLabelWithHint: true,
-                          ),
-                          cursorColor: Colors.blue,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.blueGrey.shade800,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Image picker section
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.image,
-                                      color: Colors.blueGrey.shade600,
-                                      size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Attach Image (Optional)',
-                                    style: TextStyle(
-                                      color: Colors.blueGrey.shade700,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              if (_alertImageName != null) ...[
-                                // Show selected image name and remove button
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.green.shade200),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.check_circle,
-                                          color: Colors.green.shade600,
-                                          size: 20),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _alertImageName!,
-                                          style: TextStyle(
-                                            color: Colors.green.shade700,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: _removeAlertImage,
-                                        icon: Icon(Icons.close,
-                                            color: Colors.red.shade600,
-                                            size: 20),
-                                        tooltip: 'Remove image',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ] else ...[
-                                // Show choose file button
-                                OutlinedButton.icon(
-                                  onPressed: _pickAlertImage,
-                                  icon: const Icon(Icons.upload_file),
-                                  label: const Text('Choose File'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.blue.shade700,
-                                    side:
-                                        BorderSide(color: Colors.blue.shade300),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        FutureBuilder<int>(
-                          future: _getTargetCount(_selectedTarget),
-                          builder: (context, snapshot) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.blue.shade200,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.people,
-                                      size: 20, color: Colors.blue.shade600),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Recipients: ${snapshot.data ?? "..."}',
-                                    style: TextStyle(
-                                      color: Colors.blue.shade700,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _throwAlert,
-                            icon: _isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.send),
-                            label: const Text(
-                              'Send Announcement',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 16),
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isCollapsed
+                                ? 'Show Statistics & Send Alert'
+                                : 'Hide Statistics & Send Alert',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          AnimatedRotation(
+                            turns: _isCollapsed ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.blue.shade700,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // Collapsible content
+                AnimatedCrossFade(
+                  firstChild: const SizedBox.shrink(),
+                  secondChild: Column(
+                    children: [
+                      // Statistics Cards
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return constraints.maxWidth < 600
+                              ? Column(
+                                  children: [
+                                    buildStatCardAlerts(
+                                      'Total Announcements',
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('alerts_data')
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const SkeletonStatCard();
+                                          }
+                                          return Text(
+                                            snapshot.hasData
+                                                ? '${snapshot.data?.docs.length ?? 0}'
+                                                : 'Loading...',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Icons.notifications_active,
+                                      const Color(0xFF4285F4),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildStatCardAlerts(
+                                      'Active Announcements',
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('alerts_data')
+                                            .where('status',
+                                                isEqualTo: 'active')
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const SkeletonStatCard();
+                                          }
+                                          return Text(
+                                            snapshot.hasData
+                                                ? '${snapshot.data?.docs.length ?? 0}'
+                                                : 'Loading...',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Icons.warning_rounded,
+                                      const Color(0xFFFF9800),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    buildStatCardAlerts(
+                                      'Announcement Channels',
+                                      const Text(
+                                        'Mobile App',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      Icons.phone_android,
+                                      const Color(0xFF0F9D58),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: buildStatCardAlerts(
+                                        'Total Announcements',
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('alerts_data')
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const SkeletonStatCard();
+                                            }
+                                            return Text(
+                                              snapshot.hasData
+                                                  ? '${snapshot.data?.docs.length ?? 0}'
+                                                  : 'Loading...',
+                                              style: const TextStyle(
+                                                fontSize: 30,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color.fromARGB(
+                                                    255, 227, 26, 32),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Icons.notifications_active,
+                                        const Color.fromARGB(255, 227, 26, 32),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: buildStatCardAlerts(
+                                        'Active Announcements',
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('alerts_data')
+                                              .where('status',
+                                                  isEqualTo: 'active')
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const SkeletonStatCard();
+                                            }
+                                            return Text(
+                                              snapshot.hasData
+                                                  ? '${snapshot.data?.docs.length ?? 0}'
+                                                  : 'Loading...',
+                                              style: const TextStyle(
+                                                fontSize: 30,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFFF9800),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Icons.warning_rounded,
+                                        const Color(0xFFFF9800),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: buildStatCardAlerts(
+                                        'Announcement Channel',
+                                        const Text(
+                                          'Mobile App',
+                                          style: TextStyle(
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0F9D58),
+                                          ),
+                                        ),
+                                        Icons.phone_android,
+                                        const Color(0xFF0F9D58),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Send New Alert Card
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withOpacity(0.1),
+                              spreadRadius: 0,
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add_alert,
+                                      color: Colors.red,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Send an Announcement',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              DropdownButtonFormField<AlertTarget>(
+                                value: _selectedTarget,
+                                decoration: InputDecoration(
+                                  labelText: 'Send Announcement To',
+                                  labelStyle: TextStyle(
+                                    color: Colors.blueGrey.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                        color: Colors.blueGrey.withOpacity(0.2),
+                                        width: 1.5),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                        color: Colors.blueGrey.withOpacity(0.2),
+                                        width: 1.5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: Colors.blue, width: 2),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: Icon(Icons.people,
+                                      color: Colors.blueGrey.shade600,
+                                      size: 22),
+                                ),
+                                dropdownColor: Colors.white,
+                                icon: Icon(Icons.arrow_drop_down,
+                                    color: Colors.blueGrey.shade600),
+                                items: AlertTarget.values.map((target) {
+                                  return DropdownMenuItem(
+                                    value: target,
+                                    child: Text(
+                                      _getTargetText(target),
+                                      style: TextStyle(
+                                        color: Colors.blueGrey.shade800,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (AlertTarget? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedTarget = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              TextField(
+                                controller: _messageController,
+                                maxLines: 5,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter announcement message...',
+                                  labelText: 'Announcement Message',
+                                  hintStyle: TextStyle(
+                                      color: Colors.blueGrey.shade300),
+                                  labelStyle: TextStyle(
+                                    color: Colors.blueGrey.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                        color: Colors.blueGrey.withOpacity(0.2),
+                                        width: 1.5),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                        color: Colors.blueGrey.withOpacity(0.2),
+                                        width: 1.5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: Colors.blue, width: 2),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 12,
+                                        right: 8,
+                                        top: 12,
+                                        bottom: 12),
+                                    child: Icon(Icons.message,
+                                        color: Colors.blueGrey.shade600,
+                                        size: 22),
+                                  ),
+                                  alignLabelWithHint: true,
+                                ),
+                                cursorColor: Colors.blue,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.blueGrey.shade800,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Image picker section
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.image,
+                                            color: Colors.blueGrey.shade600,
+                                            size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Attach Image (Optional)',
+                                          style: TextStyle(
+                                            color: Colors.blueGrey.shade700,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (_alertImageName != null) ...[
+                                      // Show selected image name and remove button
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: Colors.green.shade200),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.check_circle,
+                                                color: Colors.green.shade600,
+                                                size: 20),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                _alertImageName!,
+                                                style: TextStyle(
+                                                  color: Colors.green.shade700,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: _removeAlertImage,
+                                              icon: Icon(Icons.close,
+                                                  color: Colors.red.shade600,
+                                                  size: 20),
+                                              tooltip: 'Remove image',
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      // Show choose file button
+                                      OutlinedButton.icon(
+                                        onPressed: _pickAlertImage,
+                                        icon: const Icon(Icons.upload_file),
+                                        label: const Text('Choose File'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.blue.shade700,
+                                          side: BorderSide(
+                                              color: Colors.blue.shade300),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8)),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              FutureBuilder<int>(
+                                future: _getTargetCount(_selectedTarget),
+                                builder: (context, snapshot) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.blue.shade200,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.people,
+                                            size: 20,
+                                            color: Colors.blue.shade600),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Recipients: ${snapshot.data ?? "..."}',
+                                          style: TextStyle(
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _throwAlert,
+                                  icon: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.send),
+                                  label: const Text(
+                                    'Send Announcement',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 16),
+                                    elevation: 3,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                  crossFadeState: _isCollapsed
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  duration: const Duration(milliseconds: 300),
+                ),
+
+                const SizedBox(height: 16),
 
                 // Recent Alerts Card
                 Container(
@@ -1234,138 +1311,28 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
 
         return ListView.separated(
           itemCount: alerts.length,
-          separatorBuilder: (context, index) => const Divider(),
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final alert = alerts[index].data() as Map<String, dynamic>;
-            final timestamp = alert['timestamp'] as Timestamp?;
-            final formattedDate = timestamp != null
-                ? DateFormat('MMM d, y HH:mm').format(timestamp.toDate())
-                : 'Time not available';
-            final status = alert['status'] ?? 'active';
-            final isActive = status == 'active';
+            final docId = alerts[index].id;
 
-            return Card(
-              elevation: 0,
-              color: isActive ? Colors.grey.shade50 : Colors.grey.shade100,
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? Colors.red.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.notifications,
-                      color: isActive ? Colors.red : Colors.grey, size: 24),
-                ),
-                title: Text(
-                  alert['message'] ?? 'No message',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: isActive ? Colors.black87 : Colors.black54,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.access_time,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            formattedDate,
-                            style: TextStyle(color: Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.people,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          FutureBuilder<Map<String, int>>(
-                            future: _getDetailedTargetCount(alert['target']),
-                            builder: (context, snapshot) {
-                              final String targetDisplay =
-                                  alert['targetDisplay'] ?? 'All Users';
-                              String countDisplay = '';
-
-                              if (snapshot.hasData) {
-                                if (alert['target'] == 'all') {
-                                  countDisplay =
-                                      ' (${snapshot.data!['students'] ?? 0} Students, ${snapshot.data!['faculty'] ?? 0} Faculty & Staff)';
-                                } else if (alert['target'] == 'student') {
-                                  countDisplay =
-                                      ' (${snapshot.data!['students'] ?? 0} Students)';
-                                } else if (alert['target'] == 'facultyStaff') {
-                                  countDisplay =
-                                      ' (${snapshot.data!['faculty'] ?? 0} Faculty & Staff)';
-                                }
-                              }
-
-                              return Text(
-                                'Sent to: $targetDisplay$countDisplay',
-                                style: TextStyle(
-                                    color: Colors.grey.shade700, fontSize: 12),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: isActive
-                                    ? Colors.green.shade200
-                                    : Colors.grey.shade300,
-                              ),
-                            ),
-                            child: Text(
-                              isActive ? 'Active' : 'Inactive',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: isActive
-                                    ? Colors.green.shade700
-                                    : Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                trailing: IconButton(
-                  icon: Icon(Icons.edit_outlined, color: Colors.blue.shade600),
-                  tooltip: 'Edit Announcement',
-                  onPressed: () async {
-                    final docId = alerts[index].id;
-                    final bool? success =
-                        await _showEditAlertDialog(docId, alert);
-                    if (success == true && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Announcement updated successfully')),
-                      );
-                    }
-                  },
-                ),
-              ),
+            return AnnouncementCard(
+              alert: alert,
+              docId: docId,
+              announcementService: _announcementService,
+              onEdit: () async {
+                final bool? success = await _showEditAlertDialog(docId, alert);
+                if (success == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Announcement updated successfully')),
+                  );
+                }
+              },
+              onDelete: () {
+                // The stream will automatically update when item is deleted from Firestore
+                // We could add additional logic here if needed
+              },
             );
           },
         );

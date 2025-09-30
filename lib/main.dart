@@ -6,6 +6,7 @@ import 'package:campus_safe_app_admin_capstone/campus_security_admin/reports_scr
 import 'package:campus_safe_app_admin_capstone/osa_admin/osa_homepage.dart';
 import 'package:campus_safe_app_admin_capstone/services/web_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -15,29 +16,15 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: 'gemini.env');
 
-  if (kIsWeb) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyD1hd_ArzSNufP2RiehrN4qqLVoLoOs0Xs",
-        authDomain: "campussafe-capstone.firebaseapp.com",
-        databaseURL:
-            "https://campussafe-capstone-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "campussafe-capstone",
-        storageBucket: "campussafe-capstone.appspot.com",
-        messagingSenderId: "347945595192",
-        appId: "1:347945595192:web:6378f47f685c443c4ed1cd",
-        measurementId: "G-JC184VLS9K",
-      ),
-    );
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-    // Initialize web notifications
-    if (kIsWeb) {
-      WebNotificationService.initialize().catchError((e) {
-        print('Failed to initialize web notifications: $e');
-      });
-    }
-  } else {
-    await Firebase.initializeApp();
+  // Initialize web notifications
+  if (kIsWeb) {
+    WebNotificationService.initialize().catchError((e) {
+      print('Failed to initialize web notifications: $e');
+    });
   }
 
   runApp(const MyApp());
