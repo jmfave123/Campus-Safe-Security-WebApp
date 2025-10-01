@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../reusable_widget.dart';
 import 'add_security_guard_ui.dart';
-import '../services/audit_wrapper.dart';
+import '../services/audit_wrapper.dart'; // Re-enabled for core admin actions
 import '../services/web_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -185,8 +185,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _performLogoutNavigation(BuildContext navContext) {
+    print('🎯 Executing logout navigation...');
+
+    try {
+      // Method 1: Try named route - most reliable
+      Navigator.of(navContext).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
+      print('✅ Named route navigation successful');
+    } catch (e1) {
+      print('❌ Named route failed: $e1');
+
+      try {
+        // Method 2: Try MaterialPageRoute with stack clearing
+        Navigator.of(navContext).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginForm()),
+          (route) => false,
+        );
+        print('✅ MaterialPageRoute navigation successful');
+      } catch (e2) {
+        print('❌ MaterialPageRoute failed: $e2');
+
+        try {
+          // Method 3: Try simple replacement
+          Navigator.of(navContext).pushReplacement(
+            MaterialPageRoute(builder: (_) => const LoginForm()),
+          );
+          print('✅ Simple replacement navigation successful');
+        } catch (e3) {
+          print('❌ All navigation methods failed: $e3');
+
+          // Method 4: Last resort - restart the app
+          _restartApp();
+        }
+      }
+    }
+  }
+
+  void _restartApp() {
+    print('🔄 Restarting app as last resort...');
+    // Force a complete app restart by rebuilding the MaterialApp
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginForm()),
+      (route) => false,
+    );
+  }
+
   Future<void> _logout() async {
-    // Show confirmation dialog first
+    // Show confirmation dialog (no premature audit logging)
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -272,20 +320,45 @@ class _HomePageState extends State<HomePage> {
                     // Yes button
                     TextButton(
                       onPressed: () async {
+                        // Store context reference BEFORE async operations
+                        final navigationContext = context;
                         Navigator.of(context).pop(); // Close dialog
+
+                        print('=== LOGOUT EXECUTION STARTED ===');
+
+                        // Start audit logging immediately but don't wait for it
+                        // This logs ONLY when user confirms "Yes"
+                        print('🔍 Starting logout audit logging...');
+                        final auditFuture = AuditWrapper.instance.logLogout();
+                        auditFuture.then((_) {
+                          print('✅ Logout audit logged successfully');
+                        }).catchError((error) {
+                          print('❌ Logout audit failed: $error');
+                        });
+
+                        // Small delay to give audit logging a head start
+                        await Future.delayed(const Duration(milliseconds: 200));
+
+                        // Sign out from Firebase
                         try {
+                          print('🚪 Signing out from Firebase...');
                           await FirebaseAuth.instance.signOut();
-
-                          if (!mounted) return;
-
-                          // Directly redirect to login page without showing success dialog
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                                builder: (_) => const LoginForm()),
-                          );
+                          print('✅ Firebase signOut completed successfully');
                         } catch (e) {
-                          print('Error signing out: $e');
+                          print('❌ Firebase signOut failed: $e');
+                          // Continue with navigation even if signOut fails
                         }
+
+                        // Schedule navigation to happen after current execution completes
+                        // This avoids the "deactivated widget" issue
+                        print('🚀 Scheduling navigation to login page...');
+
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          // This runs after the current frame is complete
+                          _performLogoutNavigation(navigationContext);
+                        });
+
+                        print('=== LOGOUT PROCESS COMPLETED ===');
                       },
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -758,7 +831,7 @@ class _HomePageState extends State<HomePage> {
                             setState(() {
                               _selectedIndex = 8;
                             });
-                            AuditWrapper.instance.logPageAccess(8);
+                            // Removed page access logging - keeping only core functionalities
                           } else if (value == 'logout') {
                             _logout();
                           }
@@ -838,55 +911,55 @@ class _HomePageState extends State<HomePage> {
                         buildNavItem(0, 'Dashboard', Icons.dashboard_outlined,
                             isSelected: _selectedIndex == 0, onTap: () {
                           setState(() => _selectedIndex = 0);
-                          AuditWrapper.instance.logPageAccess(0);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                         buildNavItem(
                             1, 'Alcohol Detection', Icons.local_drink_outlined,
                             isSelected: _selectedIndex == 1, onTap: () {
                           setState(() => _selectedIndex = 1);
-                          AuditWrapper.instance.logPageAccess(1);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                         buildNavItem(
                             2, 'Announcements', Icons.announcement_outlined,
                             isSelected: _selectedIndex == 2, onTap: () {
                           setState(() => _selectedIndex = 2);
-                          AuditWrapper.instance.logPageAccess(2);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                         buildNavItem(3, 'Users', Icons.people_outlined,
                             isSelected: _selectedIndex == 3, onTap: () {
                           setState(() => _selectedIndex = 3);
-                          AuditWrapper.instance.logPageAccess(3);
+                          // Removed page access logging - keeping only core functionalities
                         }),
-                        buildNavItem(4, 'User Logs', Icons.people_outlined,
-                            isSelected: _selectedIndex == 4, onTap: () {
-                          setState(() => _selectedIndex = 4);
-                          AuditWrapper.instance.logPageAccess(4);
-                        }),
+                        // buildNavItem(4, 'User Logs', Icons.people_outlined,
+                        //     isSelected: _selectedIndex == 4, onTap: () {
+                        //   setState(() => _selectedIndex = 4);
+                        //   // Removed page access logging - keeping only core functionalities
+                        // }),
                         buildNavItem(5, 'Reports', Icons.description_outlined,
                             isSelected: _selectedIndex == 5, onTap: () {
                           setState(() => _selectedIndex = 5);
-                          AuditWrapper.instance.logPageAccess(5);
+                          // Removed page access logging - keeping only core functionalities
                         }),
-                        buildNavItem(6, 'Chat', Icons.chat_outlined,
-                            isSelected: _selectedIndex == 6, onTap: () {
-                          setState(() => _selectedIndex = 6);
-                          AuditWrapper.instance.logPageAccess(6);
-                        }),
+                        // buildNavItem(6, 'Chat', Icons.chat_outlined,
+                        //     isSelected: _selectedIndex == 6, onTap: () {
+                        //   setState(() => _selectedIndex = 6);
+                        //   // Removed page access logging - keeping only core functionalities
+                        // }),
                         buildNavItem(7, 'Audit Logs', Icons.history_outlined,
                             isSelected: _selectedIndex == 7, onTap: () {
                           setState(() => _selectedIndex = 7);
-                          AuditWrapper.instance.logPageAccess(7);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                         buildNavItem(8, 'Settings', Icons.settings_outlined,
                             isSelected: _selectedIndex == 8, onTap: () {
                           setState(() => _selectedIndex = 8);
-                          AuditWrapper.instance.logPageAccess(8);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                         buildNavItem(
                             9, 'Security Guards', Icons.security_outlined,
                             isSelected: _selectedIndex == 9, onTap: () {
                           setState(() => _selectedIndex = 9);
-                          AuditWrapper.instance.logPageAccess(9);
+                          // Removed page access logging - keeping only core functionalities
                         }),
                       ],
                     ),

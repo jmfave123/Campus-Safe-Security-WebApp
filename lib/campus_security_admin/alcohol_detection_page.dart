@@ -31,28 +31,47 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
             colors: [Colors.blue.shade50, Colors.white],
           ),
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                _buildCustomDateRangeBanner(),
-                const SizedBox(height: 24),
-                _buildStatisticsCards(),
-                const SizedBox(height: 24),
-                _buildDetectionsContainer(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: _getFilteredDetectionsStream(),
+          builder: (context, snapshot) {
+            // Apply filtering once at the top level
+            List<QueryDocumentSnapshot> filteredDetections = [];
+            if (snapshot.hasData) {
+              final dateRange = AlcoholDetectionService.getDateRangeForFilter(
+                _selectedDateFilter,
+                customStartDate: _customStartDate,
+                customEndDate: _customEndDate,
+              );
+              filteredDetections =
+                  AlcoholDetectionService.filterDetectionsByDateRange(
+                      snapshot.data!.docs, dateRange);
+            }
+
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(snapshot),
+                    _buildCustomDateRangeBanner(),
+                    const SizedBox(height: 16),
+                    _buildStatisticsCards(snapshot, filteredDetections),
+                    const SizedBox(height: 16),
+                    _buildDetectionsContainer(snapshot, filteredDetections),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AsyncSnapshot<QuerySnapshot> snapshot) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -124,19 +143,22 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  Widget _buildStatisticsCards() {
+  Widget _buildStatisticsCards(AsyncSnapshot<QuerySnapshot> snapshot,
+      List<QueryDocumentSnapshot> filteredDetections) {
     return Row(
       children: [
         _buildStatCard(
           'Total Detections',
-          stream: _getFilteredDetectionsStream(countOnly: true),
+          snapshot: snapshot,
+          filteredDetections: filteredDetections,
           icon: Icons.science_rounded,
           color: const Color(0xFF4285F4),
         ),
         const SizedBox(width: 16),
         _buildStatCard(
           'Active Detections',
-          stream: _getFilteredDetectionsStream(countOnly: true),
+          snapshot: snapshot,
+          filteredDetections: filteredDetections,
           icon: Icons.warning_amber_rounded,
           color: const Color(0xFFFF9800),
           statusFilter: AlcoholDetectionService.statusActive,
@@ -144,7 +166,8 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         const SizedBox(width: 16),
         _buildStatCard(
           'Resolved Detections',
-          stream: _getFilteredDetectionsStream(countOnly: true),
+          snapshot: snapshot,
+          filteredDetections: filteredDetections,
           icon: Icons.check_circle_outline,
           color: const Color(0xFF0F9D58),
           statusFilter: AlcoholDetectionService.statusResolved,
@@ -153,37 +176,45 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  Widget _buildDetectionsContainer() {
-    return Container(
-      height: 600,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+  Widget _buildDetectionsContainer(AsyncSnapshot<QuerySnapshot> snapshot,
+      List<QueryDocumentSnapshot> filteredDetections) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          height: MediaQuery.of(context).size.height *
+              0.75, // Use 75% of screen height
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 0,
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDetectionsHeader(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _buildDetectionsTable(),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetectionsHeader(snapshot, filteredDetections),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(
+                      8), // Reduced padding to give more space to table
+                  child: _buildDetectionsTable(snapshot, filteredDetections),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildDetectionsHeader() {
+  Widget _buildDetectionsHeader(AsyncSnapshot<QuerySnapshot> snapshot,
+      List<QueryDocumentSnapshot> filteredDetections) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -210,27 +241,20 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
               ),
             ],
           ),
-          StreamBuilder<QuerySnapshot>(
-            stream: _getFilteredDetectionsStream(),
-            builder: (context, snapshot) {
-              final count = snapshot.hasData ? snapshot.data!.size : 0;
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.blue.shade100),
-                ),
-                child: Text(
-                  '$count entries',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            },
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Text(
+              '${filteredDetections.length} entries',
+              style: TextStyle(
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -364,7 +388,8 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
 
   Widget _buildStatCard(
     String title, {
-    required Stream<QuerySnapshot> stream,
+    required AsyncSnapshot<QuerySnapshot> snapshot,
+    required List<QueryDocumentSnapshot> filteredDetections,
     required IconData icon,
     required Color color,
     String? statusFilter,
@@ -401,9 +426,8 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
               ],
             ),
             const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream: stream,
-              builder: (context, snapshot) {
+            Builder(
+              builder: (context) {
                 if (snapshot.hasError) {
                   return const Text(
                     'Error',
@@ -419,41 +443,19 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                   return const SkeletonStatCard();
                 }
 
-                // Apply client-side filtering by status if needed
+                // Calculate count from pre-filtered data
                 int count = 0;
-                if (snapshot.data != null) {
-                  if (statusFilter != null) {
-                    // Apply date filtering first
-                    final dateRange =
-                        AlcoholDetectionService.getDateRangeForFilter(
-                      _selectedDateFilter,
-                      customStartDate: _customStartDate,
-                      customEndDate: _customEndDate,
-                    );
-                    final filteredDocs =
-                        AlcoholDetectionService.filterDetectionsByDateRange(
-                            snapshot.data!.docs, dateRange);
-
-                    // Then filter by status
-                    count = filteredDocs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final status = data['status'] as String? ??
-                          AlcoholDetectionService.statusActive;
-                      return status == statusFilter;
-                    }).length;
-                  } else {
-                    // For total count, just apply date filtering
-                    final dateRange =
-                        AlcoholDetectionService.getDateRangeForFilter(
-                      _selectedDateFilter,
-                      customStartDate: _customStartDate,
-                      customEndDate: _customEndDate,
-                    );
-                    final filteredDocs =
-                        AlcoholDetectionService.filterDetectionsByDateRange(
-                            snapshot.data!.docs, dateRange);
-                    count = filteredDocs.length;
-                  }
+                if (statusFilter != null) {
+                  // Filter by status from already filtered detections
+                  count = filteredDetections.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final status = data['status'] as String? ??
+                        AlcoholDetectionService.statusActive;
+                    return status == statusFilter;
+                  }).length;
+                } else {
+                  // Total count from filtered detections
+                  count = filteredDetections.length;
                 }
 
                 return Text(
@@ -480,63 +482,30 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
     );
   }
 
-  Widget _buildDetectionsTable() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _getFilteredDetectionsStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show skeleton loaders for table rows
-          return Column(
-            children: List.generate(
-              5,
-              (index) => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: SkeletonLoader(height: 40, borderRadius: 8),
-              ),
-            ),
-          );
-        }
+  Widget _buildDetectionsTable(AsyncSnapshot<QuerySnapshot> snapshot,
+      List<QueryDocumentSnapshot> filteredDetections) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      // Show skeleton loaders for table rows
+      return Column(
+        children: List.generate(
+          5,
+          (index) => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: SkeletonLoader(height: 40, borderRadius: 8),
+          ),
+        ),
+      );
+    }
 
-        if (snapshot.hasError) {
-          return _buildErrorDisplay(snapshot.error);
-        }
+    if (snapshot.hasError) {
+      return _buildErrorDisplay(snapshot.error);
+    }
 
-        // Apply client-side filtering
-        final dateRange = AlcoholDetectionService.getDateRangeForFilter(
-          _selectedDateFilter,
-          customStartDate: _customStartDate,
-          customEndDate: _customEndDate,
-        );
-        final detections = AlcoholDetectionService.filterDetectionsByDateRange(
-            snapshot.data?.docs ?? [], dateRange);
+    if (filteredDetections.isEmpty) {
+      return _buildEmptyState();
+    }
 
-        if (detections.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        return _buildDataTable(detections);
-      },
-    );
-  }
-
-  // Extract client-side filtering to a separate method
-  List<QueryDocumentSnapshot> _filterDetectionsByDateRange(
-      List<QueryDocumentSnapshot> docs, DateRange dateRange) {
-    if (dateRange.useAll) return docs;
-
-    final startTimestamp = Timestamp.fromDate(dateRange.start);
-    final endTimestamp = Timestamp.fromDate(dateRange.end);
-
-    return docs.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['timestamp'] as Timestamp?;
-
-      if (timestamp == null) return false;
-
-      // Check if timestamp is between start and end dates (inclusive)
-      return timestamp.compareTo(startTimestamp) >= 0 &&
-          timestamp.compareTo(endTimestamp) <= 0;
-    }).toList();
+    return _buildDataTable(filteredDetections);
   }
 
   Widget _buildErrorDisplay(Object? error) {
@@ -587,70 +556,176 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   }
 
   Widget _buildDataTable(List<QueryDocumentSnapshot> detections) {
-    return SingleChildScrollView(
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            dividerColor: Colors.grey.shade200,
-            dataTableTheme: DataTableTheme.of(context).copyWith(
-              headingTextStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.grey.shade200,
+          dataTableTheme: DataTableTheme.of(context).copyWith(
+            headingTextStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
             ),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: DataTable(
-                    columnSpacing: 24,
-                    headingRowColor:
-                        WidgetStateProperty.all(Colors.grey.shade50),
-                    dataRowHeight: 64,
-                    headingRowHeight: 56,
-                    horizontalMargin: 16,
-                    showCheckboxColumn: false,
-                    dividerThickness: 1,
-                    columns: const [
-                      DataColumn(
-                          label: Text(' Name',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('ID Number',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Department',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Detection Time',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('BAC',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Added By',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Status',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Actions',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                    ],
-                    rows: detections.map((doc) => _buildDataRow(doc)).toList(),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Calculate available width for flexible columns
+            const fixedColumnsWidth = 120 +
+                100 +
+                100 +
+                130 +
+                70 +
+                100 +
+                120; // Sum of all fixed widths
+            const totalSpacing = 24 * 6 +
+                16 * 2; // columnSpacing * (columns-1) + horizontalMargin * 2
+            final availableWidth = constraints.maxWidth;
+            final shouldUseFlexible =
+                availableWidth > fixedColumnsWidth + totalSpacing;
+
+            return Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                physics: const BouncingScrollPhysics(),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: shouldUseFlexible
+                            ? availableWidth
+                            : (fixedColumnsWidth + totalSpacing).toDouble(),
+                      ),
+                      child: DataTable(
+                        columnSpacing: shouldUseFlexible
+                            ? ((availableWidth - fixedColumnsWidth) / 6)
+                                .toDouble()
+                            : 24,
+                        headingRowColor:
+                            WidgetStateProperty.all(Colors.grey.shade50),
+                        dataRowHeight: 60,
+                        headingRowHeight: 50,
+                        horizontalMargin: 16,
+                        showCheckboxColumn: false,
+                        dividerThickness: 1,
+                        columns: [
+                          DataColumn(
+                            label: Container(
+                              width: 120,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Name',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 100,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'ID Number',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 100,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Department',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 130,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Detection Time',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 70,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'BAC',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 100,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Status',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Container(
+                              width: 120,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Actions',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        rows: detections
+                            .map((doc) => _buildDataRow(doc))
+                            .toList(),
+                      ),
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -682,44 +757,87 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         }
       },
       cells: [
-        _buildDataCell(Icons.person, data['studentName'] ?? 'N/A'),
-        _buildDataCell(Icons.badge, data['studentId'] ?? 'N/A'),
-        _buildDataCell(Icons.school, data['studentCourse'] ?? 'N/A'),
-        _buildDataCell(Icons.sync, syncedTimeLabel),
-        _buildDataCell(Icons.speed, '${data['bac'] ?? 'N/A'}'),
-        _buildDataCell(Icons.person_add, data['addedByName'] ?? 'N/A'),
-        DataCell(_buildStatusChip(
-            data['status'] ?? AlcoholDetectionService.statusActive)),
+        _buildConstrainedDataCell(
+            Icons.person, data['studentName'] ?? 'N/A', 120),
+        _buildConstrainedDataCell(Icons.badge, data['studentId'] ?? 'N/A', 100),
+        _buildConstrainedDataCell(
+            Icons.school, data['studentCourse'] ?? 'N/A', 100),
+        _buildConstrainedDataCell(Icons.sync, syncedTimeLabel, 130),
+        _buildConstrainedDataCell(Icons.speed, '${data['bac'] ?? 'N/A'}', 70),
         DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildStatusToggle(doc.id,
-                  data['status'] ?? AlcoholDetectionService.statusActive),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.visibility, size: 20),
-                onPressed: () => _showDetectionDetails({...data, 'id': doc.id}),
-                tooltip: 'View Details',
-                color: Colors.blue,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+          Container(
+            width: 100,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildStatusChip(
+                data['status'] ?? AlcoholDetectionService.statusActive,
               ),
-            ],
+            ),
+          ),
+        ),
+        DataCell(
+          Container(
+            width: 120,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildStatusToggle(
+                    doc.id,
+                    data['status'] ?? AlcoholDetectionService.statusActive,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.visibility, size: 18),
+                    onPressed: () =>
+                        _showDetectionDetails({...data, 'id': doc.id}),
+                    tooltip: 'View Details',
+                    color: Colors.blue,
+                    padding: const EdgeInsets.all(8),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  DataCell _buildDataCell(IconData icon, String text) {
+  DataCell _buildConstrainedDataCell(IconData icon, String text, double width) {
     return DataCell(
-      Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Text(text),
-        ],
+      Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Tooltip(
+          message: text,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  text,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -727,27 +845,35 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   Widget _buildStatusChip(String status) {
     final StatusInfo statusInfo = _getStatusInfo(status);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: statusInfo.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusInfo.color.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(statusInfo.icon, size: 14, color: statusInfo.color),
-          const SizedBox(width: 6),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
+    return Tooltip(
+      message: 'Status: ${status.toUpperCase()}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: statusInfo.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: statusInfo.color.withOpacity(0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              statusInfo.icon,
+              size: 12,
               color: statusInfo.color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Text(
+              status.toUpperCase(),
+              style: TextStyle(
+                color: statusInfo.color,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -830,39 +956,6 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           ),
         );
       }
-    }
-  }
-
-  Future<void> _showDateRangePicker() async {
-    final DateTimeRange? dateRange = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _customStartDate != null && _customEndDate != null
-          ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
-          : null,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.blue,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
-            dialogBackgroundColor: Colors.white,
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (dateRange != null) {
-      setState(() {
-        _selectedDateFilter = 'Custom';
-        _customStartDate = dateRange.start;
-        _customEndDate = dateRange.end;
-      });
     }
   }
 
@@ -1392,14 +1485,6 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         ),
       );
     }
-  }
-
-  // Helper method to format date range for report
-  String _formatDateRangeForReport(DateRange range) {
-    if (range.useAll) {
-      return 'All Time';
-    }
-    return '${DateFormat('dd/MM/yyyy').format(range.start)} - ${DateFormat('dd/MM/yyyy').format(range.end)}';
   }
 
   // Helper method to format date

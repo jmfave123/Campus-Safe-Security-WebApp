@@ -127,7 +127,7 @@ class _ReusableTextFieldState extends State<ReusableTextField> {
             borderSide: BorderSide(color: Colors.grey.shade300),
           ),
         ),
-        obscureText: _obscured,
+        obscureText: widget.showToggle ? _obscured : widget.obscureText,
         validator: widget.validator,
         onChanged: widget.onChanged,
         keyboardType: widget.keyboardType,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/announcement_services.dart';
+import '../services/audit_wrapper.dart';
 import 'package:file_picker/file_picker.dart'; // For image picker
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -107,6 +108,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
       if (!mounted) return;
 
       if (result.success) {
+        // Log successful announcement creation
+        await AuditWrapper.instance.logAnnouncementCreated();
+
         // Show receipt of the alert sent
         await _showAlertReceipt(result.alertData!);
 

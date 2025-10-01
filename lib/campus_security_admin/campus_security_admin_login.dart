@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/reusable_text_field.dart';
 import '../services/campus_security_admin_login_service.dart';
+import '../services/audit_wrapper.dart';
 
 // Palette: primary 0xFF1A1851 (deep indigo), accent 0xFFFBB215 (warm yellow)
 const Color kPrimaryColor = Color(0xFF1A1851);
@@ -59,6 +60,9 @@ class _LoginFormState extends State<LoginForm> {
       if (!mounted) return;
 
       if (result.success) {
+        // Log successful admin login
+        await AuditWrapper.instance.logLogin();
+
         // Navigate to home on success
         Navigator.pushReplacementNamed(context, '/home');
       } else {

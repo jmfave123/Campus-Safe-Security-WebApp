@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import '../widgets/reusable_text_field.dart';
 import '../services/admin_profile_service.dart';
+import '../services/audit_wrapper.dart';
 import '../services/change_password_service.dart';
 
 class SettingsPageUI {
@@ -323,6 +324,9 @@ class _ProfileManagementWidgetState extends State<ProfileManagementWidget> {
             backgroundColor: Colors.green.shade600,
           ),
         );
+
+        // Log successful admin profile update
+        await AuditWrapper.instance.logAdminProfileUpdated();
 
         // Clear selected image and reload data
         setState(() {
@@ -700,6 +704,9 @@ class _AccountSecurityWidgetState extends State<AccountSecurityWidget> {
             backgroundColor: Colors.green.shade600,
           ),
         );
+
+        // Log successful password change
+        await AuditWrapper.instance.logPasswordChanged();
       }
     } catch (e) {
       if (mounted) {

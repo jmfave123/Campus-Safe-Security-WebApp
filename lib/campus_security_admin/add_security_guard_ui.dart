@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/add_security_guard_services.dart';
+import '../services/audit_wrapper.dart';
 import '../OTP/smschef_client.dart';
 
 // Local theme color used across admin pages
@@ -1280,6 +1281,11 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
         backgroundColor: success ? Colors.green.shade600 : Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
       ));
+
+      // Log successful guard verification
+      if (success) {
+        await AuditWrapper.instance.logGuardVerified();
+      }
     }
   }
 
@@ -1337,6 +1343,11 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
               success ? Colors.green.shade600 : Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
         ));
+
+        // Log successful guard profile update
+        if (success) {
+          await AuditWrapper.instance.logGuardProfileUpdated();
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).clearSnackBars();

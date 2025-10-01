@@ -11,25 +11,7 @@ class AuditWrapper {
 
   AuditWrapper._internal();
 
-  // Page tracking
-  static const Map<int, String> _pageNames = {
-    0: 'Dashboard',
-    1: 'Campus Status',
-    2: 'Alcohol Detection',
-    3: 'Throw Alerts',
-    4: 'User Logs',
-    5: 'Reports',
-    6: 'Gemini Chat',
-    7: 'Audit Logs',
-    8: 'Settings',
-  };
-
-  // Wrapper methods for easy access
-  Future<void> logPageAccess(int pageIndex) async {
-    final pageName = _pageNames[pageIndex] ?? 'Unknown Page';
-    await _auditService.logPageAccess(pageName);
-  }
-
+  // Authentication & Security
   Future<void> logLogin() async {
     await _auditService.logLogin();
   }
@@ -38,9 +20,11 @@ class AuditWrapper {
     await _auditService.logLogout();
   }
 
-  Future<void> logDashboardAccess() async {
-    await _auditService.logDashboardAccess();
+  Future<void> logPasswordChanged() async {
+    await _auditService.logPasswordChanged();
   }
+
+  // Campus Status Management
 
   Future<void> logStatusUpdate({
     required String newStatus,
@@ -54,6 +38,7 @@ class AuditWrapper {
     );
   }
 
+  // Report Management
   Future<void> logReportViewed(String reportId) async {
     await _auditService.logReportViewed(reportId);
   }
@@ -82,6 +67,7 @@ class AuditWrapper {
     );
   }
 
+  // Alert Management
   Future<void> logAlertCreated({
     required String alertId,
     required String message,
@@ -110,6 +96,25 @@ class AuditWrapper {
     await _auditService.logAlertDeleted(alertId);
   }
 
+  // Communication & Announcements
+  Future<void> logAnnouncementCreated() async {
+    await _auditService.logAnnouncementCreated();
+  }
+
+  // Guard Management
+  Future<void> logGuardProfileUpdated() async {
+    await _auditService.logGuardProfileUpdated();
+  }
+
+  Future<void> logGuardVerified() async {
+    await _auditService.logGuardVerified();
+  }
+
+  // Profile Management
+  Future<void> logAdminProfileUpdated() async {
+    await _auditService.logAdminProfileUpdated();
+  }
+
   // Generic action logging
   Future<void> logAction({
     required AuditAction action,
@@ -122,7 +127,6 @@ class AuditWrapper {
   }) async {
     await _auditService.logAdminAction(
       action: action,
-      description: description,
       isSuccess: isSuccess,
       errorMessage: errorMessage,
     );

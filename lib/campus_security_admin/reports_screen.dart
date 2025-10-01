@@ -7,6 +7,7 @@ import '../reusable_widget.dart';
 import '../services/user_reports_service.dart';
 import '../services/reports_pdf_service.dart';
 import '../services/image_service.dart';
+import '../services/audit_wrapper.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -2318,6 +2319,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       [String? remarks]) async {
     try {
       await _reportsService.updateReportStatus(reportId, newStatus, remarks);
+
+      // Log the report status update action
+      await AuditWrapper.instance.logReportStatusUpdate(
+        reportId: reportId,
+        newStatus: newStatus,
+      );
 
       // Show success dialog
       if (mounted) {
