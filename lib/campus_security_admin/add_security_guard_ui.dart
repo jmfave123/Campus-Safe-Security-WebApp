@@ -8,7 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/add_security_guard_services.dart';
 import '../services/audit_wrapper.dart';
-import '../OTP/smschef_client.dart';
+import '../otp_provider/otp_provider_factory.dart';
+import '../otp_provider/otp_provider.dart';
+import '../otp_provider/local_verifier.dart';
 
 // Local theme color used across admin pages
 const Color kPrimaryColor = Color(0xFF1A1851);
@@ -50,24 +52,37 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
   int _resendRemaining = 0;
   Timer? _resendTimer;
 
-  // Send OTP to the provided phone using SmsChefClient. Reads API key from env.
-  Future<void> _sendOtpToPhone(String phone, {int expire = 600}) async {
-    final apiKey =
-        dotenv.env['SMS_CHEF_API'] ?? dotenv.env['SMS_CHEF_API'.toUpperCase()];
+  // Local OTP verifier for Semaphore (since it doesn't have verification endpoint)
+  final LocalOtpVerifier _otpVerifier = LocalOtpVerifier();
+
+  // Send OTP to the provided phone using Semaphore API. Returns SendResult for OTP code access.
+  Future<SendResult?> _sendOtpToPhone(String phone, {int expire = 600}) async {
+    final apiKey = dotenv.env['SEMAPHORE_API'] ??
+        dotenv.env['SEMAPHORE_API'.toUpperCase()];
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('SMS_CHEF_API not configured'),
+        content: Text('SEMAPHORE_API not configured'),
         backgroundColor: Colors.red,
       ));
-      return;
+      return null;
     }
 
-    final client = SmsChefClient(
-        baseUrl: 'https://www.cloud.smschef.com', apiSecret: apiKey);
+    final otpProvider =
+        OtpProviderFactory.createSemaphoreProvider(apiKey: apiKey);
     try {
-      final res = await client.sendOtp(phone: phone, expire: expire);
+      final result = await otpProvider.sendOtp(
+        phone: phone,
+        message:
+            'Your Campus Safe verification code is {otp}. Valid for 10 minutes.',
+        expireSeconds: expire,
+      );
+
+      // Debug: Print result details
+      print(
+          'DEBUG: OTP Send Result - success: ${result.success}, message: ${result.message}');
+
       // Do not log or display the OTP. Use only status/message for UX.
-      if (res.status == 200) {
+      if (result.success) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Row(children: [
             Icon(Icons.check_circle, color: Colors.white),
@@ -76,19 +91,32 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
           ]),
           backgroundColor: Colors.green.shade600,
         ));
+        return result; // Return the result so caller can access the OTP code
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to send OTP: ${res.message}'),
+          content: Text('Failed to send OTP: ${result.message}'),
+          backgroundColor: Colors.red.shade600,
+        ));
+        return null;
+      }
+    } catch (e) {
+      // Debug: Print exception details
+      print('DEBUG: OTP Send Exception - type: ${e.runtimeType}, message: $e');
+
+      if (e is ProviderException) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('SMS service error: ${e.message}'),
+          backgroundColor: Colors.red.shade600,
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error sending OTP: $e'),
           backgroundColor: Colors.red.shade600,
         ));
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error sending OTP: $e'),
-        backgroundColor: Colors.red.shade600,
-      ));
+      return null;
     } finally {
-      client.dispose();
+      otpProvider.dispose();
     }
   }
 
@@ -1399,10 +1427,26 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
     // Send OTP
     setState(() => _isSendingOtp = true);
+    SendResult? sendResult;
     try {
-      await _sendOtpToPhone(phone, expire: 600);
+      sendResult = await _sendOtpToPhone(phone, expire: 600);
+
+      // Store OTP for local verification if send was successful
+      if (sendResult != null && sendResult.success && sendResult.code != null) {
+        print('DEBUG: Storing OTP code for verification: ${sendResult.code!}');
+        await _otpVerifier.storeOtp(
+          phone: phone,
+          code: sendResult.code!,
+          ttlSeconds: 600, // 10 minutes
+        );
+      }
     } finally {
       setState(() => _isSendingOtp = false);
+    }
+
+    // If OTP send failed, don't proceed to verification dialog
+    if (sendResult == null || !sendResult.success) {
+      return;
     }
 
     // Prompt admin to enter OTP
@@ -1480,73 +1524,44 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                     if (otp.isEmpty) return;
                     setState(() => _isVerifying = true);
                     // verify
-                    final apiKey = dotenv.env['SMS_CHEF_API'];
+                    final apiKey = dotenv.env['SEMAPHORE_API'];
                     if (apiKey == null || apiKey.isEmpty) {
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('SMS_CHEF_API not configured'),
+                        content: Text('SEMAPHORE_API not configured'),
                         backgroundColor: Colors.red,
                       ));
                       setState(() => _isVerifying = false);
                       return;
                     }
 
-                    final client = SmsChefClient(
-                        baseUrl: 'https://www.cloud.smschef.com',
-                        apiSecret: apiKey);
                     try {
-                      final resp =
-                          await client.verifyOtp(otp: otp, phone: phone);
-                      // Debug output in debug builds to help diagnose mismatches
-                      assert(() {
-                        // ignore: avoid_print
-                        print(
-                            'SmsChef verify response: status=${resp.status} message=${resp.message} data=${resp.data} verified=${resp.verified} verifiedLoosely=${resp.verifiedLoosely}');
-                        return true;
-                      }());
+                      // Debug: Log what OTP user entered vs what we expect
+                      print('DEBUG: User entered OTP: $otp');
+                      print(
+                          'DEBUG: Verifying against stored OTP for phone: $phone');
 
-                      // Accept strict or loose verified states. If the server
-                      // says the OTP was already verified, show a friendly
-                      // message and proceed.
-                      if (resp.verified) {
-                        assert(() {
-                          print('verify: strict verified');
-                          return true;
-                        }());
-                        Navigator.pop(context, true);
-                      } else if (resp.verifiedLoosely) {
-                        assert(() {
-                          print('verify: loosely verified');
-                          return true;
-                        }());
+                      // First try normal verification
+                      final verifyResult = await _otpVerifier.verifyOtp(
+                        phone: phone,
+                        code: otp,
+                      );
+
+                      print(
+                          'DEBUG: Verification result: ${verifyResult.verified}, message: ${verifyResult.message}');
+
+                      if (verifyResult.verified) {
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context)
                             .showSnackBar(const SnackBar(
-                          content: Text('OTP already verified — proceeding'),
-                          backgroundColor: Colors.green,
-                        ));
-                        Navigator.pop(context, true);
-                      } else if (resp.status == 200 &&
-                          resp.message.toLowerCase().contains('verified')) {
-                        // Defensive: some server responses set data=false but include
-                        // a textual confirmation. Accept that as success.
-                        assert(() {
-                          print('verify: status200+message contains verified');
-                          return true;
-                        }());
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(
-                          content: Text(
-                              'OTP verified (server message) — proceeding'),
+                          content: Text('OTP verified successfully!'),
                           backgroundColor: Colors.green,
                         ));
                         Navigator.pop(context, true);
                       } else {
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content:
-                              Text('OTP verification failed: ${resp.message}'),
+                          content: Text(verifyResult.message),
                           backgroundColor: Colors.red,
                         ));
                       }
@@ -1557,7 +1572,6 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                         backgroundColor: Colors.red.shade600,
                       ));
                     } finally {
-                      client.dispose();
                       setState(() => _isVerifying = false);
                     }
                   },
