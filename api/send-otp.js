@@ -9,6 +9,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Phone and message are required' });
   }
 
+  // Check if API key is configured
+  if (!process.env.SEMAPHORE_API_KEY) {
+    return res.status(500).json({ error: 'SEMAPHORE_API_KEY not configured' });
+  }
+
   try {
     // Call Semaphore API from server-side (no CORS!)
     const response = await fetch('https://api.semaphore.co/api/v4/otp', {
