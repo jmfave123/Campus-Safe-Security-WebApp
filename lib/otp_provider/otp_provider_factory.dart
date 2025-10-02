@@ -28,6 +28,7 @@
 /// ```
 library;
 
+import 'dart:math' as math;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'otp_provider.dart';
 import 'semaphore/semaphore_client.dart';
@@ -53,13 +54,25 @@ class OtpProviderFactory {
     return SemaphoreClient(apiKey: key);
   }
 
+  /// Create a local development provider that doesn't send real SMS.
+  ///
+  /// This provider generates OTP codes locally for testing purposes.
+  /// Useful for development and testing without sending actual SMS.
+  ///
+  /// Returns a mock OTP provider for local development
+  static OtpProvider createLocalProvider() {
+    return _LocalOtpProvider();
+  }
+
   /// Create provider based on environment configuration.
   ///
   /// Looks for 'OTP_PROVIDER' environment variable to determine which
   /// provider to create. Defaults to 'semaphore' if not specified.
+  /// If in debug mode and no API key, falls back to local provider.
   ///
   /// Supported providers:
   /// - 'semaphore' - Creates SemaphoreClient
+  /// - 'local' - Creates local mock provider
   ///
   /// Returns the configured OTP provider
   static OtpProvider createFromEnvironment() {
@@ -67,11 +80,22 @@ class OtpProviderFactory {
 
     switch (providerType.toLowerCase()) {
       case 'semaphore':
-        return createSemaphoreProvider();
+        try {
+          return createSemaphoreProvider();
+        } catch (e) {
+          // In debug mode, fall back to local provider if API key missing
+          if (const bool.fromEnvironment('dart.vm.product') == false) {
+            return createLocalProvider();
+          }
+          rethrow;
+        }
+
+      case 'local':
+        return createLocalProvider();
 
       default:
         throw ArgumentError('Unsupported OTP provider: $providerType. '
-            'Supported providers: semaphore');
+            'Supported providers: semaphore, local');
     }
   }
 
@@ -196,4 +220,52 @@ class ProviderValidationResult {
 
   @override
   String toString() => 'ProviderValidation($provider): $message';
+}
+
+/// Local mock OTP provider for development/testing
+class _LocalOtpProvider implements OtpProvider {
+  @override
+  Future<SendResult> sendOtp({
+    required String phone,
+    required String message,
+    int expireSeconds = 300,
+    String? code,
+  }) async {
+    // Generate a random 6-digit OTP if not provided
+    final otpCode = code ?? _generateOtpCode();
+
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    return SendResult(
+      success: true,
+      providerMessageId: 'local_${DateTime.now().millisecondsSinceEpoch}',
+      code: otpCode,
+      message: 'OTP generated locally: $otpCode',
+      rawResponse: {'local': true, 'code': otpCode},
+    );
+  }
+
+  @override
+  Future<VerifyResult> verifyOtp({
+    required String phone,
+    required String code,
+  }) async {
+    // Local provider doesn't verify - always return invalid
+    // Use LocalOtpVerifier for actual verification
+    return VerifyResult(
+      verified: false,
+      message: 'Local provider does not support verification. Use LocalOtpVerifier.',
+    );
+  }
+
+  @override
+  void dispose() {
+    // Nothing to dispose
+  }
+
+  String _generateOtpCode() {
+    final random = math.Random();
+    return (100000 + random.nextInt(900000)).toString();
+  }
 }

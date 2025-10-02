@@ -21,8 +21,11 @@ export default async function handler(req, res) {
 
   // Check if API key is configured
   if (!process.env.SEMAPHORE_API_KEY) {
+    console.log('Environment variables:', Object.keys(process.env).filter(key => key.includes('SEMAPHORE')));
     return res.status(500).json({ error: 'SEMAPHORE_API_KEY not configured' });
   }
+  
+  console.log('API key found, length:', process.env.SEMAPHORE_API_KEY.length);
 
   try {
     // Call Semaphore API from server-side (no CORS!)

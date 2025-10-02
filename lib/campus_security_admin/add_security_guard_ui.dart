@@ -57,11 +57,11 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
   // Send OTP to the provided phone using Semaphore API. Returns SendResult for OTP code access.
   Future<SendResult?> _sendOtpToPhone(String phone, {int expire = 600}) async {
-    final apiKey = dotenv.env['SEMAPHORE_API'] ??
-        dotenv.env['SEMAPHORE_API'.toUpperCase()];
+    final apiKey = dotenv.env['SEMAPHORE_API_KEY'] ??
+        dotenv.env['SEMAPHORE_API_KEY'.toUpperCase()];
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('SEMAPHORE_API not configured'),
+        content: Text('SEMAPHORE_API_KEY not configured'),
         backgroundColor: Colors.red,
       ));
       return null;
@@ -1524,11 +1524,11 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                     if (otp.isEmpty) return;
                     setState(() => _isVerifying = true);
                     // verify
-                    final apiKey = dotenv.env['SEMAPHORE_API'];
+                    final apiKey = dotenv.env['SEMAPHORE_API_KEY'];
                     if (apiKey == null || apiKey.isEmpty) {
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('SEMAPHORE_API not configured'),
+                        content: Text('SEMAPHORE_API_KEY not configured'),
                         backgroundColor: Colors.red,
                       ));
                       setState(() => _isVerifying = false);
