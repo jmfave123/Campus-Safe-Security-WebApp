@@ -17,8 +17,16 @@ class AuditUi extends StatelessWidget {
   }
 }
 
-class _AuditUiContent extends StatelessWidget {
+class _AuditUiContent extends StatefulWidget {
   const _AuditUiContent();
+
+  @override
+  State<_AuditUiContent> createState() => _AuditUiContentState();
+}
+
+class _AuditUiContentState extends State<_AuditUiContent> {
+  // Collapsible section state
+  bool _isCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -182,8 +190,69 @@ class _AuditUiContent extends StatelessWidget {
                       children: [
                         _buildHeader(context, provider),
                         const SizedBox(height: 24),
-                        _buildStatsCards(context, provider),
-                        const SizedBox(height: 24),
+
+                        // Collapsible arrow button
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isCollapsed = !_isCollapsed;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _isCollapsed == true
+                                        ? 'Show Statistics'
+                                        : 'Hide Statistics',
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  AnimatedRotation(
+                                    turns: _isCollapsed == true ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: Colors.blue.shade700,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Collapsible content with slide animation
+                        AnimatedCrossFade(
+                          firstChild: const SizedBox.shrink(),
+                          secondChild: Column(
+                            children: [
+                              _buildStatsCardsWithAnimation(context, provider),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
+                          crossFadeState: _isCollapsed == true
+                              ? CrossFadeState.showFirst
+                              : CrossFadeState.showSecond,
+                          duration: const Duration(milliseconds: 300),
+                        ),
+
                         _buildFiltersSection(context, provider),
 
                         // Display Selected Date Range Info
@@ -277,45 +346,150 @@ class _AuditUiContent extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsCards(BuildContext context, AuditProvider provider) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Total Logs',
-            '${provider.auditStats['total_logs'] ?? 0}',
-            Icons.list_alt,
-            Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Successful',
-            '${provider.auditStats['successful_operations'] ?? 0}',
-            Icons.check_circle,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Failed',
-            '${provider.auditStats['failed_operations'] ?? 0}',
-            Icons.error,
-            Colors.red,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Success Rate',
-            _calculateSuccessRate(provider),
-            Icons.trending_up,
-            Colors.orange,
-          ),
-        ),
-      ],
+  Widget _buildStatsCardsWithAnimation(
+      BuildContext context, AuditProvider provider) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -200.0, end: 0.0),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: _buildStatCard(
+                      'Total Actions',
+                      provider.isLoading
+                          ? '...'
+                          : (provider.auditStats['total_logs']?.toString() ??
+                              '0'),
+                      Icons.analytics,
+                      Colors.blue,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -200.0, end: 0.0),
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: _buildStatCard(
+                      'Successful',
+                      provider.isLoading
+                          ? '...'
+                          : (provider.auditStats['successful_operations']
+                                  ?.toString() ??
+                              '0'),
+                      Icons.check_circle,
+                      Colors.green,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -200.0, end: 0.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: _buildStatCard(
+                      'Failed',
+                      provider.isLoading
+                          ? '...'
+                          : (provider.auditStats['failed_operations']
+                                  ?.toString() ??
+                              '0'),
+                      Icons.error,
+                      Colors.red,
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        } else {
+          return Row(
+            children: [
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -200.0, end: 0.0),
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOutBack,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: _buildStatCard(
+                        'Total Actions',
+                        provider.isLoading
+                            ? '...'
+                            : (provider.auditStats['total_logs']?.toString() ??
+                                '0'),
+                        Icons.analytics,
+                        Colors.blue,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -200.0, end: 0.0),
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutBack,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: _buildStatCard(
+                        'Successful',
+                        provider.isLoading
+                            ? '...'
+                            : (provider.auditStats['successful_operations']
+                                    ?.toString() ??
+                                '0'),
+                        Icons.check_circle,
+                        Colors.green,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -200.0, end: 0.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOutBack,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: _buildStatCard(
+                        'Failed',
+                        provider.isLoading
+                            ? '...'
+                            : (provider.auditStats['failed_operations']
+                                    ?.toString() ??
+                                '0'),
+                        Icons.error,
+                        Colors.red,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+      },
     );
   }
 
@@ -548,18 +722,18 @@ class _AuditUiContent extends StatelessWidget {
                 if (errorString.contains('permission-denied') ||
                     errorString.contains('insufficient permissions')) {
                   // Show a subtle message instead of alarming error
-                  return Padding(
-                    padding: const EdgeInsets.all(40),
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
                     child: Center(
                       child: Column(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.lock_outline,
                             size: 48,
                             color: Colors.grey,
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
+                          SizedBox(height: 16),
+                          Text(
                             'Audit logs not accessible',
                             style: TextStyle(
                               fontSize: 16,
@@ -725,12 +899,24 @@ class _AuditUiContent extends StatelessWidget {
     return DataRow(
       cells: [
         DataCell(
-          SizedBox(
-            width: 120,
-            child: Text(
-              _formatTimestamp(log['timestamp']),
-              style: const TextStyle(fontSize: 13),
-              overflow: TextOverflow.ellipsis,
+          Tooltip(
+            message: _formatTimestamp(log['timestamp']),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            child: SizedBox(
+              width: 120,
+              child: Text(
+                _formatTimestamp(log['timestamp']),
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ),
@@ -741,31 +927,79 @@ class _AuditUiContent extends StatelessWidget {
           ),
         ),
         DataCell(
-          SizedBox(
-            width: 80,
-            child: _buildStatusChip(log['status']),
-          ),
-        ),
-        DataCell(
-          SizedBox(
-            width: 100,
-            child: _buildPlatformChip(log['platform']),
-          ),
-        ),
-        DataCell(
-          SizedBox(
-            width: 200,
-            child: Text(
-              log['user_email'] ?? 'N/A',
-              style: const TextStyle(fontSize: 13),
-              overflow: TextOverflow.ellipsis,
+          Tooltip(
+            message: log['status'] ?? 'N/A',
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            child: SizedBox(
+              width: 80,
+              child: _buildStatusChip(log['status']),
             ),
           ),
         ),
         DataCell(
-          SizedBox(
-            width: 150,
-            child: _buildUserTypeChip(log['user_type']),
+          Tooltip(
+            message: log['platform'] ?? 'N/A',
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            child: SizedBox(
+              width: 100,
+              child: _buildPlatformChip(log['platform']),
+            ),
+          ),
+        ),
+        DataCell(
+          Tooltip(
+            message: log['user_email'] ?? 'N/A',
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            child: SizedBox(
+              width: 200,
+              child: Text(
+                log['user_email'] ?? 'N/A',
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          Tooltip(
+            message: log['user_type'] ?? 'N/A',
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            child: SizedBox(
+              width: 150,
+              child: _buildUserTypeChip(log['user_type']),
+            ),
           ),
         ),
       ],
@@ -773,8 +1007,9 @@ class _AuditUiContent extends StatelessWidget {
   }
 
   Widget _buildActionChip(String? action) {
-    if (action == null)
+    if (action == null) {
       return const Text('N/A', style: TextStyle(fontSize: 12));
+    }
 
     Color color;
     String displayText;
@@ -817,7 +1052,7 @@ class _AuditUiContent extends StatelessWidget {
         color = Colors.grey;
         displayText = action.replaceAll('_', ' ').toUpperCase();
         if (displayText.length > 20) {
-          displayText = displayText.substring(0, 20) + '...';
+          displayText = '${displayText.substring(0, 20)}...';
         }
     }
 
@@ -881,8 +1116,9 @@ class _AuditUiContent extends StatelessWidget {
   // }
 
   Widget _buildPlatformChip(String? platform) {
-    if (platform == null || platform.isEmpty)
+    if (platform == null || platform.isEmpty) {
       return const Text('N/A', style: TextStyle(fontSize: 11));
+    }
 
     Color color;
     String displayText;
@@ -927,8 +1163,9 @@ class _AuditUiContent extends StatelessWidget {
   }
 
   Widget _buildUserTypeChip(String? userType) {
-    if (userType == null || userType.isEmpty)
+    if (userType == null || userType.isEmpty) {
       return const Text('N/A', style: TextStyle(fontSize: 11));
+    }
 
     Color color;
     String displayText;
@@ -981,8 +1218,9 @@ class _AuditUiContent extends StatelessWidget {
   }
 
   Widget _buildStatusChip(String? status) {
-    if (status == null)
+    if (status == null) {
       return const Text('N/A', style: TextStyle(fontSize: 11));
+    }
 
     Color color = status == 'success' ? Colors.green : Colors.red;
     IconData icon = status == 'success' ? Icons.check_circle : Icons.error;
@@ -1074,16 +1312,6 @@ class _AuditUiContent extends StatelessWidget {
     } catch (e) {
       return 'Invalid date';
     }
-  }
-
-  String _calculateSuccessRate(AuditProvider provider) {
-    final total = provider.auditStats['total_logs'] ?? 0;
-    final successful = provider.auditStats['successful_operations'] ?? 0;
-
-    if (total == 0) return '0%';
-
-    final rate = (successful / total * 100).round();
-    return '$rate%';
   }
 
   // Helper to get the descriptive label shown below the header

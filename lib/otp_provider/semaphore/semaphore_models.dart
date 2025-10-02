@@ -157,7 +157,7 @@ class SemaphoreSendResponse {
     if (json is List) {
       // Standard Semaphore response is an array of messages
       messages = json
-          .where((item) => item is Map<String, dynamic>)
+          .whereType<Map<String, dynamic>>()
           .map((item) =>
               SemaphoreMessage.fromJson(Map<String, dynamic>.from(item)))
           .toList();
@@ -165,7 +165,7 @@ class SemaphoreSendResponse {
       // Handle single message wrapped in object
       if (json.containsKey('messages') && json['messages'] is List) {
         messages = (json['messages'] as List)
-            .where((item) => item is Map<String, dynamic>)
+            .whereType<Map<String, dynamic>>()
             .map((item) =>
                 SemaphoreMessage.fromJson(Map<String, dynamic>.from(item)))
             .toList();

@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import '../reusable_widget.dart';
 import 'add_security_guard_ui.dart';
 import '../services/audit_wrapper.dart'; // Re-enabled for core admin actions
-import '../services/web_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'alcohol_detection_page.dart';
@@ -398,20 +397,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _toggleNotificationPanel(
-      BuildContext context, GlobalKey notificationKey) async {
-    // Request web notification permission if on web and not granted
-    if (kIsWeb) {
-      try {
-        final hasPermission =
-            await WebNotificationService.areNotificationsEnabled();
-        if (!hasPermission) {
-          await _requestWebNotificationPermission();
-        }
-      } catch (e) {
-        print('Error checking notification permission: $e');
-      }
-    }
-
+      BuildContext context, GlobalKey notificationKey) {
     if (_isNotificationOpen) {
       _removeOverlay();
       return;
@@ -526,116 +512,6 @@ class _HomePageState extends State<HomePage> {
     }, onError: (error) {
       print('Error listening to breathalyzer notifications: $error');
     });
-  }
-
-  // Request web notification permission
-  Future<void> _requestWebNotificationPermission() async {
-    if (!kIsWeb) return;
-
-    try {
-      final hasPermission =
-          await WebNotificationService.areNotificationsEnabled();
-
-      if (!hasPermission) {
-        // Show a friendly dialog before requesting permission
-        final shouldRequest = await _showPermissionDialog();
-
-        if (shouldRequest == true) {
-          // Try OneSignal first
-          bool granted = await WebNotificationService.requestPermission();
-
-          // If OneSignal fails, try native browser API
-          if (!granted) {
-            print('OneSignal permission failed, trying native API...');
-            granted = await WebNotificationService.requestNativePermission();
-          }
-
-          if (granted) {
-            _showNotificationSuccessSnackBar();
-          } else {
-            _showNotificationDeniedSnackBar();
-          }
-        }
-      }
-    } catch (e) {
-      print('Error requesting web notification permission: $e');
-      _showNotificationDeniedSnackBar();
-    }
-  }
-
-  // Show permission request dialog
-  Future<bool?> _showPermissionDialog() async {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false, // Make it modal
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.notifications_active, color: kPrimaryColor),
-              SizedBox(width: 8),
-              Text('Enable Notifications'),
-            ],
-          ),
-          content: const Text(
-            'Would you like to receive push notifications for:\n\n'
-            '• New incident reports\n'
-            '• Security alerts and announcements\n'
-            '• Alcohol detection warnings\n'
-            '• Important system updates\n\n'
-            'You can change this setting later in your browser.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Not Now'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryColor,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Enable Notifications'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Show success message
-  void _showNotificationSuccessSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Notifications enabled successfully!'),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
-  // Show denied message
-  void _showNotificationDeniedSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.info, color: Colors.white),
-            SizedBox(width: 8),
-            Text('You can enable notifications later in browser settings.'),
-          ],
-        ),
-        backgroundColor: Colors.orange,
-        duration: Duration(seconds: 4),
-      ),
-    );
   }
 
   // Fetch the initial count of unread notifications

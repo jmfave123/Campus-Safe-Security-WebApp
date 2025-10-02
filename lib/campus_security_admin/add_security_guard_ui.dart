@@ -5,23 +5,39 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // enable image picker for profile selection
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../services/add_security_guard_services.dart';
 import '../services/audit_wrapper.dart';
 import '../otp_provider/otp_provider_factory.dart';
 import '../otp_provider/otp_provider.dart';
 import '../otp_provider/local_verifier.dart';
+import '../providers/security_guard_provider.dart';
 
 // Local theme color used across admin pages
 const Color kPrimaryColor = Color(0xFF1A1851);
 
-class AddSecurityGuardUi extends StatefulWidget {
+class AddSecurityGuardUi extends StatelessWidget {
   const AddSecurityGuardUi({super.key});
 
   @override
-  _AddSecurityGuardUiState createState() => _AddSecurityGuardUiState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => SecurityGuardProvider()..loadGuardData(),
+      child: const _AddSecurityGuardUiContent(),
+    );
+  }
 }
 
-class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
+class _AddSecurityGuardUiContent extends StatefulWidget {
+  const _AddSecurityGuardUiContent();
+
+  @override
+  _AddSecurityGuardUiContentState createState() =>
+      _AddSecurityGuardUiContentState();
+}
+
+class _AddSecurityGuardUiContentState
+    extends State<_AddSecurityGuardUiContent> {
   // Controllers for guard detail editing
   // (Form controllers removed as add dialog is not currently implemented)
 
@@ -36,6 +52,9 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
   // Resend cooldown timer
   int _resendRemaining = 0;
   Timer? _resendTimer;
+
+  // Collapsible section state
+  bool _isCollapsed = false;
 
   // Local OTP verifier for Semaphore (since it doesn't have verification endpoint)
   final LocalOtpVerifier _otpVerifier = LocalOtpVerifier();
@@ -127,36 +146,103 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.blue.shade50, Colors.white],
-          ),
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 24),
-                _buildStatisticsCards(),
-                const SizedBox(height: 24),
-                _buildGuardsContainer(),
-                const SizedBox(height: 24),
-              ],
+    return Consumer<SecurityGuardProvider>(
+      builder: (context, provider, child) {
+        return Scaffold(
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.blue.shade50, Colors.white],
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context, provider),
+                    const SizedBox(height: 24),
+
+                    // Collapsible arrow button
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isCollapsed = !_isCollapsed;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isCollapsed == true
+                                    ? 'Show Statistics'
+                                    : 'Hide Statistics',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              AnimatedRotation(
+                                turns: _isCollapsed == true ? 0.5 : 0,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeInOutCubic,
+                                child: Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Collapsible content with slide animation
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Column(
+                        children: [
+                          _buildStatisticsCardsWithAnimation(context, provider),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                      crossFadeState: _isCollapsed == true
+                          ? CrossFadeState.showFirst
+                          : CrossFadeState.showSecond,
+                      duration: const Duration(milliseconds: 500),
+                      sizeCurve: Curves.easeInOutCubic,
+                    ),
+
+                    _buildGuardsContainer(context, provider),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context, SecurityGuardProvider provider) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -197,47 +283,220 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     );
   }
 
-  Widget _buildStatisticsCards() {
-    return Row(
-      children: [
-        _buildStatCard(
-          'Total Guards',
-          stream: FirebaseFirestore.instance
-              .collection('securityGuard_user')
-              .snapshots(),
-          icon: Icons.people,
-          color: const Color(0xFF4285F4),
-        ),
-        const SizedBox(width: 16),
-        _buildStatCard(
-          'Verified Guards',
-          stream: FirebaseFirestore.instance
-              .collection('securityGuard_user')
-              .snapshots(),
-          icon: Icons.verified_user,
-          color: const Color(0xFF0F9D58),
-          statusFilter: 'verified',
-        ),
-        const SizedBox(width: 16),
-        _buildStatCard(
-          'Pending Verification',
-          stream: FirebaseFirestore.instance
-              .collection('securityGuard_user')
-              .snapshots(),
-          icon: Icons.pending,
-          color: const Color(0xFFFF9800),
-          statusFilter: 'pending',
-        ),
-      ],
+  Widget _buildStatisticsCardsWithAnimation(
+      BuildContext context, SecurityGuardProvider provider) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -300.0, end: 0.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.0),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scaleValue, child) {
+                        return Transform.scale(
+                          scale: scaleValue,
+                          child: _buildStatCard(
+                            'Total Guards',
+                            value: provider.isLoading
+                                ? '...'
+                                : (provider.guardStats['total_guards']
+                                        ?.toString() ??
+                                    '0'),
+                            icon: Icons.people,
+                            color: const Color(0xFF4285F4),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -300.0, end: 0.0),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.0),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scaleValue, child) {
+                        return Transform.scale(
+                          scale: scaleValue,
+                          child: _buildStatCard(
+                            'Verified Guards',
+                            value: provider.isLoading
+                                ? '...'
+                                : (provider.guardStats['verified_guards']
+                                        ?.toString() ??
+                                    '0'),
+                            icon: Icons.verified_user,
+                            color: const Color(0xFF0F9D58),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: -300.0, end: 0.0),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(value, 0),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.0),
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scaleValue, child) {
+                        return Transform.scale(
+                          scale: scaleValue,
+                          child: _buildStatCard(
+                            'Pending Verification',
+                            value: provider.isLoading
+                                ? '...'
+                                : (provider.guardStats['pending_guards']
+                                        ?.toString() ??
+                                    '0'),
+                            icon: Icons.pending,
+                            color: const Color(0xFFFF9800),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        } else {
+          return Row(
+            children: [
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -300.0, end: 0.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.8, end: 1.0),
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeOutBack,
+                        builder: (context, scaleValue, child) {
+                          return Transform.scale(
+                            scale: scaleValue,
+                            child: _buildStatCard(
+                              'Total Guards',
+                              value: provider.isLoading
+                                  ? '...'
+                                  : (provider.guardStats['total_guards']
+                                          ?.toString() ??
+                                      '0'),
+                              icon: Icons.people,
+                              color: const Color(0xFF4285F4),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -300.0, end: 0.0),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.8, end: 1.0),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeOutBack,
+                        builder: (context, scaleValue, child) {
+                          return Transform.scale(
+                            scale: scaleValue,
+                            child: _buildStatCard(
+                              'Verified Guards',
+                              value: provider.isLoading
+                                  ? '...'
+                                  : (provider.guardStats['verified_guards']
+                                          ?.toString() ??
+                                      '0'),
+                              icon: Icons.verified_user,
+                              color: const Color(0xFF0F9D58),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -300.0, end: 0.0),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(value, 0),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.8, end: 1.0),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutBack,
+                        builder: (context, scaleValue, child) {
+                          return Transform.scale(
+                            scale: scaleValue,
+                            child: _buildStatCard(
+                              'Pending Verification',
+                              value: provider.isLoading
+                                  ? '...'
+                                  : (provider.guardStats['pending_guards']
+                                          ?.toString() ??
+                                      '0'),
+                              icon: Icons.pending,
+                              color: const Color(0xFFFF9800),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+      },
     );
   }
 
   Widget _buildStatCard(
     String title, {
-    required Stream<QuerySnapshot> stream,
+    required String value,
     required IconData icon,
     required Color color,
-    String? statusFilter,
   }) {
     return Expanded(
       child: Container(
@@ -271,59 +530,13 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
               ],
             ),
             const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream: stream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Text(
-                    'Error',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text(
-                    '...',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  );
-                }
-
-                int count = 0;
-                if (snapshot.data != null) {
-                  if (statusFilter != null) {
-                    count = snapshot.data!.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final isVerified = data['isVerifiedByAdmin'] == true ||
-                          data['emailVerified'] == true;
-                      if (statusFilter == 'verified') {
-                        return isVerified;
-                      } else if (statusFilter == 'pending') {
-                        return !isVerified;
-                      }
-                      return false;
-                    }).length;
-                  } else {
-                    count = snapshot.data!.docs.length;
-                  }
-                }
-
-                return Text(
-                  count.toString(),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                );
-              },
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -339,7 +552,8 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     );
   }
 
-  Widget _buildGuardsContainer() {
+  Widget _buildGuardsContainer(
+      BuildContext context, SecurityGuardProvider provider) {
     return Container(
       height: 600,
       decoration: BoxDecoration(
@@ -357,11 +571,11 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildGuardsHeader(),
+          _buildGuardsHeader(context, provider),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildGuardsTable(),
+              child: _buildGuardsTable(context, provider),
             ),
           ),
         ],
@@ -369,7 +583,8 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     );
   }
 
-  Widget _buildGuardsHeader() {
+  Widget _buildGuardsHeader(
+      BuildContext context, SecurityGuardProvider provider) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -396,41 +611,30 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
               ),
             ],
           ),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('securityGuard_user')
-                .snapshots(),
-            builder: (context, snapshot) {
-              final count = snapshot.hasData ? snapshot.data!.size : 0;
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.blue.shade100),
-                ),
-                child: Text(
-                  '$count entries',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            },
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Text(
+              '${provider.guards.length} entries',
+              style: TextStyle(
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGuardsTable() {
+  Widget _buildGuardsTable(
+      BuildContext context, SecurityGuardProvider provider) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('securityGuard_user')
-          .orderBy('accountCreated', descending: true)
-          .snapshots(),
+      stream: provider.getGuardsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

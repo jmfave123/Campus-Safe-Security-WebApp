@@ -349,7 +349,9 @@ class AuditLogService {
   // Get audit log statistics
   Future<Map<String, dynamic>> getAuditStats() async {
     try {
+      print('AuditLogService: Fetching audit logs...');
       final logs = await getAuditLogs(limit: 1000);
+      print('AuditLogService: Retrieved ${logs.length} audit logs');
 
       final stats = {
         'total_logs': logs.length,
@@ -370,6 +372,7 @@ class AuditLogService {
         }
       }
 
+      print('AuditLogService: Calculated stats: $stats');
       return stats;
     } catch (e) {
       print('Failed to fetch audit stats: $e');

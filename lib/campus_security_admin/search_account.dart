@@ -23,6 +23,9 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
   String _selectedUserType = "All"; // Default to All
   StreamSubscription? _subscription;
 
+  // Collapsible section state
+  bool _isCollapsed = false;
+
   @override
   void initState() {
     super.initState();
@@ -311,182 +314,253 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Stats Cards
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return constraints.maxWidth < 600
-                        ? Column(
-                            children: [
-                              _buildStatCard(
-                                'Total Users',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SkeletonStatCard();
-                                    }
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.people,
-                                const Color(0xFF4285F4),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildStatCard(
-                                'Students',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .where('userType', isEqualTo: 'Student')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SkeletonStatCard();
-                                    }
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.school,
-                                const Color(0xFFFF9800),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildStatCard(
-                                'Faculty & Staff',
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .where('userType',
-                                          isEqualTo: 'Faculty & Staff')
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SkeletonStatCard();
-                                    }
-                                    return Text(
-                                      snapshot.hasData
-                                          ? '${snapshot.data?.docs.length ?? 0}'
-                                          : 'Loading...',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Icons.work,
-                                const Color(0xFF0F9D58),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Total Users',
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data?.docs.length ?? 0}'
-                                            : 'Loading...',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Icons.people,
-                                  const Color(0xFF4285F4),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Students',
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .where('userType', isEqualTo: 'Student')
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data?.docs.length ?? 0}'
-                                            : 'Loading...',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Icons.school,
-                                  const Color(0xFFFF9800),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Faculty & Staff',
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .where('userType',
-                                            isEqualTo: 'Faculty & Staff')
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data?.docs.length ?? 0}'
-                                            : 'Loading...',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Icons.work,
-                                  const Color(0xFF0F9D58),
-                                ),
-                              ),
-                            ],
-                          );
-                  },
+                // Collapsible arrow button
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isCollapsed = !_isCollapsed;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isCollapsed
+                                ? 'Show Statistics'
+                                : 'Hide Statistics',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          AnimatedRotation(
+                            turns: _isCollapsed ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.blue.shade700,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // Collapsible content with slide animation
+                AnimatedCrossFade(
+                  firstChild: const SizedBox.shrink(),
+                  secondChild: Column(
+                    children: [
+                      // Stats Cards
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return constraints.maxWidth < 600
+                              ? Column(
+                                  children: [
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: -200.0, end: 0.0),
+                                      duration:
+                                          const Duration(milliseconds: 400),
+                                      curve: Curves.easeOutBack,
+                                      builder: (context, value, child) {
+                                        return Transform.translate(
+                                          offset: Offset(value, 0),
+                                          child: _buildStatCard(
+                                            'Total Users',
+                                            StreamBuilder<QuerySnapshot>(
+                                              stream: FirebaseFirestore.instance
+                                                  .collection('users')
+                                                  .snapshots(),
+                                              builder: (context, snapshot) {
+                                                if (snapshot.connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return const SkeletonStatCard();
+                                                }
+                                                return Text(
+                                                  snapshot.hasData
+                                                      ? '${snapshot.data?.docs.length ?? 0}'
+                                                      : 'Loading...',
+                                                  style: const TextStyle(
+                                                    fontSize: 24,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black87,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            Icons.people,
+                                            const Color(0xFF4285F4),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildStatCard(
+                                      'Students',
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('users')
+                                            .where('userType',
+                                                isEqualTo: 'Student')
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const SkeletonStatCard();
+                                          }
+                                          return Text(
+                                            snapshot.hasData
+                                                ? '${snapshot.data?.docs.length ?? 0}'
+                                                : 'Loading...',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Icons.school,
+                                      const Color(0xFFFF9800),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildStatCard(
+                                      'Faculty & Staff',
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('users')
+                                            .where('userType',
+                                                isEqualTo: 'Faculty & Staff')
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const SkeletonStatCard();
+                                          }
+                                          return Text(
+                                            snapshot.hasData
+                                                ? '${snapshot.data?.docs.length ?? 0}'
+                                                : 'Loading...',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Icons.work,
+                                      const Color(0xFF0F9D58),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total Users',
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('users')
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            return Text(
+                                              snapshot.hasData
+                                                  ? '${snapshot.data?.docs.length ?? 0}'
+                                                  : 'Loading...',
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Icons.people,
+                                        const Color(0xFF4285F4),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Students',
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('users')
+                                              .where('userType',
+                                                  isEqualTo: 'Student')
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            return Text(
+                                              snapshot.hasData
+                                                  ? '${snapshot.data?.docs.length ?? 0}'
+                                                  : 'Loading...',
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Icons.school,
+                                        const Color(0xFFFF9800),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Faculty & Staff',
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('users')
+                                              .where('userType',
+                                                  isEqualTo: 'Faculty & Staff')
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            return Text(
+                                              snapshot.hasData
+                                                  ? '${snapshot.data?.docs.length ?? 0}'
+                                                  : 'Loading...',
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Icons.work,
+                                        const Color(0xFF0F9D58),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                  crossFadeState: _isCollapsed == true
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  duration: const Duration(milliseconds: 300),
+                ),
 
                 // Find User Card
                 Container(
@@ -574,9 +648,11 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                                 vertical: 16),
                                       ),
                                       onChanged: (value) {
-                                        setState(() {
-                                          _searchQuery = value;
-                                        });
+                                        if (mounted) {
+                                          setState(() {
+                                            _searchQuery = value;
+                                          });
+                                        }
                                       },
                                       onSubmitted: (_) => _performSearch(),
                                     ),
@@ -631,9 +707,11 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                         );
                                       }).toList(),
                                       onChanged: (newValue) {
-                                        setState(() {
-                                          _selectedUserType = newValue!;
-                                        });
+                                        if (mounted) {
+                                          setState(() {
+                                            _selectedUserType = newValue!;
+                                          });
+                                        }
                                       },
                                     ),
                                     const SizedBox(height: 16),
@@ -708,9 +786,11 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                               .withOpacity(0.3),
                                         ),
                                         onChanged: (value) {
-                                          setState(() {
-                                            _searchQuery = value;
-                                          });
+                                          if (mounted) {
+                                            setState(() {
+                                              _searchQuery = value;
+                                            });
+                                          }
                                         },
                                         onSubmitted: (_) => _performSearch(),
                                       ),
@@ -765,9 +845,11 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                                           );
                                         }).toList(),
                                         onChanged: (newValue) {
-                                          setState(() {
-                                            _selectedUserType = newValue!;
-                                          });
+                                          if (mounted) {
+                                            setState(() {
+                                              _selectedUserType = newValue!;
+                                            });
+                                          }
                                         },
                                       ),
                                     ),

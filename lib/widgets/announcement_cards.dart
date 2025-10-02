@@ -122,7 +122,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                     );
                   },
                   errorBuilder: (context, error, stackTrace) {
-                    return Center(
+                    return const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -131,7 +131,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                             size: 64,
                             color: Colors.white70,
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
                             'Failed to load image',
                             style: TextStyle(
@@ -260,7 +260,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                       ),
                     ],
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.security,
                     color: Colors.white,
                     size: 20,
@@ -274,7 +274,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                     children: [
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             'Campus Security Admin',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
@@ -372,7 +372,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               message,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 15,
                 height: 1.4,
                 color: Colors.black87,

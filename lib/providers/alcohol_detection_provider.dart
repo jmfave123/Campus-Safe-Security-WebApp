@@ -166,8 +166,4 @@ class AlcoholDetectionProvider extends ChangeNotifier {
   }
 
   // Dispose method to clean up resources
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

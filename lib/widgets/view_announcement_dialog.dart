@@ -66,7 +66,7 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                     );
                   },
                   errorBuilder: (context, error, stackTrace) {
-                    return Center(
+                    return const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -75,7 +75,7 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                             size: 64,
                             color: Colors.white70,
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
                             'Failed to load image',
                             style: TextStyle(
@@ -210,7 +210,7 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                         ),
                       ],
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.security,
                       color: Colors.white,
                       size: 24,
@@ -223,7 +223,7 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                       children: [
                         Row(
                           children: [
-                            Text(
+                            const Text(
                               'Campus Security Admin',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,

@@ -20,6 +20,9 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  // Collapsible section state
+  bool _isCollapsed = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,8 +60,69 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
                     _buildHeader(snapshot),
                     _buildCustomDateRangeBanner(),
                     const SizedBox(height: 16),
-                    _buildStatisticsCards(snapshot, filteredDetections),
+
+                    // Collapsible arrow button
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isCollapsed = !_isCollapsed;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isCollapsed
+                                    ? 'Show Statistics'
+                                    : 'Hide Statistics',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              AnimatedRotation(
+                                turns: _isCollapsed ? 0.5 : 0,
+                                duration: const Duration(milliseconds: 300),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 16),
+
+                    // Collapsible content
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Column(
+                        children: [
+                          _buildStatisticsCards(snapshot, filteredDetections),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                      crossFadeState: _isCollapsed
+                          ? CrossFadeState.showFirst
+                          : CrossFadeState.showSecond,
+                      duration: const Duration(milliseconds: 300),
+                    ),
+
                     _buildDetectionsContainer(snapshot, filteredDetections),
                     const SizedBox(height: 16),
                   ],
@@ -285,12 +349,12 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
           // For Custom: open the shared compact date-range picker from reusable_widget.dart
           final result = await showCustomDateRangePicker(context);
           if (result != null &&
-              result.containsKey('start') &&
-              result.containsKey('end')) {
+              result.containsKey('startDate') &&
+              result.containsKey('endDate')) {
             setState(() {
               _selectedDateFilter = 'Custom';
-              _customStartDate = result['start'];
-              _customEndDate = result['end'];
+              _customStartDate = result['startDate'];
+              _customEndDate = result['endDate'];
             });
           }
         },

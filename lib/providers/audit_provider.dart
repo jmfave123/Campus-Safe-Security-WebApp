@@ -52,24 +52,58 @@ class AuditProvider extends ChangeNotifier {
     return query.snapshots();
   }
 
-  // Load audit stats (async operation)
+  // Load audit stats (async operation) - now filter-aware
   Future<void> loadAuditData() async {
     // Check if user is authenticated before loading data
     if (FirebaseAuth.instance.currentUser == null) {
+      print('AuditProvider: User not authenticated, skipping data load');
       _isLoading = false;
       notifyListeners();
       return;
     }
 
+    print(
+        'AuditProvider: Loading audit data with filter: $_selectedDateFilter');
     _isLoading = true;
     notifyListeners();
 
     try {
-      final stats = await _auditService.getAuditStats();
+      // Calculate date range based on current filter
+      final dateRange = _getDateRange();
+
+      // Get filtered audit logs
+      final logs = await _auditService.getAuditLogs(
+        limit: 1000,
+        startDate: dateRange['start'],
+        endDate: dateRange['end'],
+      );
+
+      // Calculate statistics from filtered logs
+      final stats = {
+        'total_logs': logs.length,
+        'successful_operations':
+            logs.where((log) => log['status'] == 'success').length,
+        'failed_operations':
+            logs.where((log) => log['status'] == 'failed').length,
+        'user_types': <String, int>{},
+        'recent_activity': logs.take(5).toList(),
+      };
+
+      // Count user types
+      for (var log in logs) {
+        final userType = log['user_type'] as String?;
+        if (userType != null) {
+          final userTypes = stats['user_types'] as Map<String, int>;
+          userTypes[userType] = (userTypes[userType] ?? 0) + 1;
+        }
+      }
+
+      print('AuditProvider: Calculated filtered stats: $stats');
       _auditStats = stats;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      print('AuditProvider: Error loading audit data: $e');
       _isLoading = false;
       notifyListeners();
       // Re-throw to let UI handle error display
@@ -86,6 +120,8 @@ class AuditProvider extends ChangeNotifier {
       _customEndDate = null;
     }
     notifyListeners();
+    // Reload statistics with new filter
+    loadAuditData();
   }
 
   // Update custom date range
@@ -94,6 +130,8 @@ class AuditProvider extends ChangeNotifier {
     _customEndDate = end;
     _selectedDateFilter = 'Custom';
     notifyListeners();
+    // Reload statistics with new custom date range
+    loadAuditData();
   }
 
   // Calculate date range based on filter (private method)

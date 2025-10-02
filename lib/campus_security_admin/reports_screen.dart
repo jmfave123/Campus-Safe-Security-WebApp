@@ -26,6 +26,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  // Collapsible section state
+  bool _isCollapsed = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,6 +117,53 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
 
               const SizedBox(height: 24),
+
+              // Collapsible arrow button
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCollapsed = !_isCollapsed;
+                    });
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _isCollapsed == true
+                              ? 'Show Statistics'
+                              : 'Hide Statistics',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        AnimatedRotation(
+                          turns: _isCollapsed == true ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 300),
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.blue.shade700,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               // Wrap the Stats Cards and Reports Table in a StreamBuilder
               Expanded(
@@ -229,202 +279,382 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Stats Cards with data from the stream
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final totalReports = reports.length;
-                                  final pendingReports = reports
-                                      .where((doc) =>
-                                          (doc.data() as Map<String, dynamic>)[
-                                                  'status']
-                                              ?.toLowerCase() ==
-                                          'pending')
-                                      .length;
-                                  final resolvedReports = reports
-                                      .where((doc) =>
-                                          (doc.data() as Map<String, dynamic>)[
-                                                  'status']
-                                              ?.toLowerCase() ==
-                                          'resolved')
-                                      .length;
-                                  final inProgressReports = reports
-                                      .where((doc) =>
-                                          (doc.data() as Map<String, dynamic>)[
-                                                  'status']
-                                              ?.toLowerCase() ==
-                                          'in progress')
-                                      .length;
-                                  final falseReportCount = reports
-                                      .where((doc) =>
-                                          (doc.data() as Map<String, dynamic>)[
-                                                  'status']
-                                              ?.toLowerCase() ==
-                                          'false report')
-                                      .length;
+                              // Collapsible content with slide animation
+                              AnimatedCrossFade(
+                                firstChild: const SizedBox.shrink(),
+                                secondChild: Column(
+                                  children: [
+                                    // Stats Cards with data from the stream
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final totalReports = reports.length;
+                                        final pendingReports = reports
+                                            .where((doc) =>
+                                                (doc.data() as Map<String,
+                                                        dynamic>)['status']
+                                                    ?.toLowerCase() ==
+                                                'pending')
+                                            .length;
+                                        final resolvedReports = reports
+                                            .where((doc) =>
+                                                (doc.data() as Map<String,
+                                                        dynamic>)['status']
+                                                    ?.toLowerCase() ==
+                                                'resolved')
+                                            .length;
+                                        final inProgressReports = reports
+                                            .where((doc) =>
+                                                (doc.data() as Map<String,
+                                                        dynamic>)['status']
+                                                    ?.toLowerCase() ==
+                                                'in progress')
+                                            .length;
+                                        final falseReportCount = reports
+                                            .where((doc) =>
+                                                (doc.data() as Map<String,
+                                                        dynamic>)['status']
+                                                    ?.toLowerCase() ==
+                                                'false report')
+                                            .length;
 
-                                  if (constraints.maxWidth < 600) {
-                                    return Column(
-                                      children: [
-                                        buildStatCardAlerts(
-                                          'Total Reports',
-                                          Text(
-                                            totalReports.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Icons.report,
-                                          const Color(0xFF4285F4),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        buildStatCardAlerts(
-                                          'Pending Reports',
-                                          Text(
-                                            pendingReports.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Icons.pending_actions,
-                                          const Color(0xFFFF9800),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        buildStatCardAlerts(
-                                          'Resolved Reports',
-                                          Text(
-                                            resolvedReports.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Icons.task_alt,
-                                          const Color(0xFF0F9D58),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        buildStatCardAlerts(
-                                          'In Progress Reports',
-                                          Text(
-                                            inProgressReports.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Icons.engineering,
-                                          Colors.blue,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        buildStatCardAlerts(
-                                          'False Reports',
-                                          Text(
-                                            falseReportCount.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Icons.report_problem,
-                                          Colors.red.shade700,
-                                        ),
-                                      ],
-                                    );
-                                  } else {
-                                    return Row(
-                                      children: [
-                                        Expanded(
-                                          child: buildStatCardAlerts(
-                                            'Total Reports',
-                                            Text(
-                                              totalReports.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                        if (constraints.maxWidth < 600) {
+                                          return Column(
+                                            children: [
+                                              TweenAnimationBuilder<double>(
+                                                tween: Tween(
+                                                    begin: -200.0, end: 0.0),
+                                                duration: const Duration(
+                                                    milliseconds: 400),
+                                                curve: Curves.easeOutBack,
+                                                builder:
+                                                    (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(value, 0),
+                                                    child: buildStatCardAlerts(
+                                                      'Total Reports',
+                                                      Text(
+                                                        totalReports.toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Icons.report,
+                                                      const Color(0xFF4285F4),
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            Icons.report,
-                                            const Color(0xFF4285F4),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: buildStatCardAlerts(
-                                            'Pending Reports',
-                                            Text(
-                                              pendingReports.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                              const SizedBox(height: 16),
+                                              TweenAnimationBuilder<double>(
+                                                tween: Tween(
+                                                    begin: -200.0, end: 0.0),
+                                                duration: const Duration(
+                                                    milliseconds: 500),
+                                                curve: Curves.easeOutBack,
+                                                builder:
+                                                    (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(value, 0),
+                                                    child: buildStatCardAlerts(
+                                                      'Pending Reports',
+                                                      Text(
+                                                        pendingReports
+                                                            .toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Icons.pending_actions,
+                                                      const Color(0xFFFF9800),
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            Icons.pending_actions,
-                                            const Color(0xFFFF9800),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: buildStatCardAlerts(
-                                            'Resolved Reports',
-                                            Text(
-                                              resolvedReports.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                              const SizedBox(height: 16),
+                                              TweenAnimationBuilder<double>(
+                                                tween: Tween(
+                                                    begin: -200.0, end: 0.0),
+                                                duration: const Duration(
+                                                    milliseconds: 600),
+                                                curve: Curves.easeOutBack,
+                                                builder:
+                                                    (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(value, 0),
+                                                    child: buildStatCardAlerts(
+                                                      'Resolved Reports',
+                                                      Text(
+                                                        resolvedReports
+                                                            .toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Icons.task_alt,
+                                                      const Color(0xFF0F9D58),
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            Icons.task_alt,
-                                            const Color(0xFF0F9D58),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: buildStatCardAlerts(
-                                            'In Progress Reports',
-                                            Text(
-                                              inProgressReports.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                              const SizedBox(height: 16),
+                                              TweenAnimationBuilder<double>(
+                                                tween: Tween(
+                                                    begin: -200.0, end: 0.0),
+                                                duration: const Duration(
+                                                    milliseconds: 700),
+                                                curve: Curves.easeOutBack,
+                                                builder:
+                                                    (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(value, 0),
+                                                    child: buildStatCardAlerts(
+                                                      'In Progress Reports',
+                                                      Text(
+                                                        inProgressReports
+                                                            .toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Icons.engineering,
+                                                      Colors.blue,
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            Icons.engineering,
-                                            Colors.blue,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: buildStatCardAlerts(
-                                            'False Reports',
-                                            Text(
-                                              falseReportCount.toString(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                              const SizedBox(height: 16),
+                                              TweenAnimationBuilder<double>(
+                                                tween: Tween(
+                                                    begin: -200.0, end: 0.0),
+                                                duration: const Duration(
+                                                    milliseconds: 800),
+                                                curve: Curves.easeOutBack,
+                                                builder:
+                                                    (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(value, 0),
+                                                    child: buildStatCardAlerts(
+                                                      'False Reports',
+                                                      Text(
+                                                        falseReportCount
+                                                            .toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Icons.report_problem,
+                                                      Colors.red.shade700,
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            Icons.report_problem,
-                                            Colors.red.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                },
+                                            ],
+                                          );
+                                        } else {
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: TweenAnimationBuilder<
+                                                    double>(
+                                                  tween: Tween(
+                                                      begin: -200.0, end: 0.0),
+                                                  duration: const Duration(
+                                                      milliseconds: 400),
+                                                  curve: Curves.easeOutBack,
+                                                  builder:
+                                                      (context, value, child) {
+                                                    return Transform.translate(
+                                                      offset: Offset(value, 0),
+                                                      child:
+                                                          buildStatCardAlerts(
+                                                        'Total Reports',
+                                                        Text(
+                                                          totalReports
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 24,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        Icons.report,
+                                                        const Color(0xFF4285F4),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: TweenAnimationBuilder<
+                                                    double>(
+                                                  tween: Tween(
+                                                      begin: -200.0, end: 0.0),
+                                                  duration: const Duration(
+                                                      milliseconds: 500),
+                                                  curve: Curves.easeOutBack,
+                                                  builder:
+                                                      (context, value, child) {
+                                                    return Transform.translate(
+                                                      offset: Offset(value, 0),
+                                                      child:
+                                                          buildStatCardAlerts(
+                                                        'Pending Reports',
+                                                        Text(
+                                                          pendingReports
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 24,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        Icons.pending_actions,
+                                                        const Color(0xFFFF9800),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: TweenAnimationBuilder<
+                                                    double>(
+                                                  tween: Tween(
+                                                      begin: -200.0, end: 0.0),
+                                                  duration: const Duration(
+                                                      milliseconds: 600),
+                                                  curve: Curves.easeOutBack,
+                                                  builder:
+                                                      (context, value, child) {
+                                                    return Transform.translate(
+                                                      offset: Offset(value, 0),
+                                                      child:
+                                                          buildStatCardAlerts(
+                                                        'Resolved Reports',
+                                                        Text(
+                                                          resolvedReports
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 24,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        Icons.task_alt,
+                                                        const Color(0xFF0F9D58),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: TweenAnimationBuilder<
+                                                    double>(
+                                                  tween: Tween(
+                                                      begin: -200.0, end: 0.0),
+                                                  duration: const Duration(
+                                                      milliseconds: 700),
+                                                  curve: Curves.easeOutBack,
+                                                  builder:
+                                                      (context, value, child) {
+                                                    return Transform.translate(
+                                                      offset: Offset(value, 0),
+                                                      child:
+                                                          buildStatCardAlerts(
+                                                        'In Progress Reports',
+                                                        Text(
+                                                          inProgressReports
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 24,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        Icons.engineering,
+                                                        Colors.blue,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: TweenAnimationBuilder<
+                                                    double>(
+                                                  tween: Tween(
+                                                      begin: -200.0, end: 0.0),
+                                                  duration: const Duration(
+                                                      milliseconds: 800),
+                                                  curve: Curves.easeOutBack,
+                                                  builder:
+                                                      (context, value, child) {
+                                                    return Transform.translate(
+                                                      offset: Offset(value, 0),
+                                                      child:
+                                                          buildStatCardAlerts(
+                                                        'False Reports',
+                                                        Text(
+                                                          falseReportCount
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 24,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        Icons.report_problem,
+                                                        Colors.red.shade700,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 24),
+                                  ],
+                                ),
+                                crossFadeState: _isCollapsed == true
+                                    ? CrossFadeState.showFirst
+                                    : CrossFadeState.showSecond,
+                                duration: const Duration(milliseconds: 300),
                               ),
-
-                              const SizedBox(height: 24),
 
                               // Reports Table
                               Container(
