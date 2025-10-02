@@ -1,18 +1,28 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "build.sh",
-        "use": "@vercel/static-build",
-        "config": {
-          "distDir": "build/web"
-        }
-      }
-    ],
-    "build": {
-      "env": {
-        "NODE_VERSION": "16.x",
-        "FLUTTER_VERSION": "3.16.9"
+  "version": 2,
+  "builds": [
+    {
+      "src": "build.sh",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build/web"
       }
     }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/web/$1"
+    }
+  ],
+  "build": {
+    "env": {
+      "NODE_VERSION": "16.x",
+      "FLUTTER_VERSION": "3.16.9"
+    }
   }
+}
