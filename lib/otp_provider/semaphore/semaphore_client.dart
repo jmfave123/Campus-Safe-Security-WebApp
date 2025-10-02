@@ -104,7 +104,7 @@ class SemaphoreClient implements OtpProvider {
   }) async {
     // Use Vercel API endpoint instead of Semaphore directly
     final uri = Uri.parse(
-        'https://https://campus-safe-security-web-app.vercel.app/api/send-otp');
+        'https://campus-safe-security-web-app.vercel.app/api/send-otp');
 
     // Send JSON payload to our backend
     final requestBody = jsonEncode({
