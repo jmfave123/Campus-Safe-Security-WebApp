@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // enable image picker for profile selection
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/add_security_guard_services.dart';
 import '../services/audit_wrapper.dart';
 import '../otp_provider/otp_provider_factory.dart';
@@ -23,57 +22,34 @@ class AddSecurityGuardUi extends StatefulWidget {
 }
 
 class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
-  // form state and controllers
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _badgeController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
-  // transient form fields
-  String _name = '';
-  String _phone = '';
-  String _badge = '';
+  // Controllers for guard detail editing
+  // (Form controllers removed as add dialog is not currently implemented)
 
   // image bytes selected for profile
   Uint8List? _profileImageData;
   String? _profileImageName;
 
-  // dialog context when dialogs are shown
-  BuildContext? _dialogContext;
-
   // transient loading state used when sending OTP
   bool _isSendingOtp = false;
   // transient loading state used when verifying OTP
   bool _isVerifying = false;
-  // Resend cooldown (seconds) and timer
-  final int _resendCooldownSeconds = 30;
+  // Resend cooldown timer
   int _resendRemaining = 0;
   Timer? _resendTimer;
 
   // Local OTP verifier for Semaphore (since it doesn't have verification endpoint)
   final LocalOtpVerifier _otpVerifier = LocalOtpVerifier();
 
-  // Send OTP to the provided phone using Semaphore API. Returns SendResult for OTP code access.
+  // Send OTP to the provided phone using Node.js server. Returns SendResult for OTP code access.
   Future<SendResult?> _sendOtpToPhone(String phone, {int expire = 600}) async {
-    final apiKey = dotenv.env['SEMAPHORE_API_KEY'] ??
-        dotenv.env['SEMAPHORE_API_KEY'.toUpperCase()];
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('SEMAPHORE_API_KEY not configured'),
-        backgroundColor: Colors.red,
-      ));
-      return null;
-    }
-
+    // Create Semaphore client (no API key needed - server handles it)
     final otpProvider =
-        OtpProviderFactory.createSemaphoreProvider(apiKey: apiKey);
+        OtpProviderFactory.createSemaphoreProvider(apiKey: 'dummy');
+
     try {
       final result = await otpProvider.sendOtp(
         phone: phone,
-        message:
-            'Your Campus Safe verification code is {otp}. Valid for 10 minutes.',
+        message: 'placeholder', // Server generates the message
         expireSeconds: expire,
       );
 
@@ -145,238 +121,9 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     }
   }
 
-  // Minimal form card used in Add dialog. Keeps the original app's fields
-  // but does not implement full submission here (server-side flow preferred).
-  Widget _buildFormCard(void Function(void Function()) setDialogState) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Phone'),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _badgeController,
-                decoration: const InputDecoration(labelText: 'Badge'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () {
-                      _emailController.clear();
-                      _passwordController.clear();
-                      setDialogState(() {
-                        _profileImageData = null;
-                        _profileImageName = null;
-                      });
-                    },
-                    child: const Text('Reset'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSendingOtp
-                        ? null
-                        : () async {
-                            final phone = _phoneController.text.trim();
-                            if (phone.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please enter a phone number'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              return;
-                            }
+  // Removed _buildFormCard method as it's not used in current implementation
 
-                            // update dialog-local state so the button can show a loader
-                            setDialogState(() => _isSendingOtp = true);
-                            try {
-                              await _sendOtpToPhone(phone);
-                            } finally {
-                              setDialogState(() => _isSendingOtp = false);
-                            }
-                          },
-                    child: _isSendingOtp
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Send OTP'),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAddDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        // store dialog context so we can close it from _submit
-        _dialogContext = dialogContext;
-        final mq = MediaQuery.of(dialogContext).size;
-        // Keep dialog compact: 90% on very small screens, otherwise cap at 420px
-        final double maxDialogWidth = mq.width < 480 ? mq.width * 0.9 : 420;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Dialog(
-              // light gray sheet behind the card (not fully transparent)
-              backgroundColor: Colors.grey.shade200,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              // make the gray sheet smaller on wide screens by increasing inset
-              insetPadding: EdgeInsets.symmetric(
-                horizontal: mq.width < 800 ? 24.0 : mq.width * 0.18,
-                vertical: mq.height < 700 ? 24.0 : mq.height * 0.12,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxDialogWidth),
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Profile avatar & image picker
-                          // Top-centered avatar with camera overlay (social-media style)
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              // Avatar with ring and shadow
-                              MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () =>
-                                      _pickImage(onUpdate: setDialogState),
-                                  child: Container(
-                                    width: 84,
-                                    height: 84,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _profileImageData == null
-                                            ? kPrimaryColor.withOpacity(0.2)
-                                            : kPrimaryColor,
-                                        width: _profileImageData == null
-                                            ? 1.5
-                                            : 2.5,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.08),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                      color: Colors.grey.shade100,
-                                    ),
-                                    child: ClipOval(
-                                      child: _profileImageData != null
-                                          ? Image.memory(
-                                              _profileImageData!,
-                                              width: 84,
-                                              height: 84,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Container(
-                                              color: Colors.transparent,
-                                              alignment: Alignment.center,
-                                              child: const Icon(
-                                                Icons.person,
-                                                color: kPrimaryColor,
-                                                size: 40,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Camera action button (overlapping)
-                              Positioned(
-                                right: -4,
-                                bottom: -4,
-                                child: Material(
-                                  color: Colors.white,
-                                  elevation: 2,
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () =>
-                                        _pickImage(onUpdate: setDialogState),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(6.0),
-                                      child: Icon(
-                                        Icons.camera_alt,
-                                        size: 18,
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Add Security Guard',
-                            style: TextStyle(
-                              color: kPrimaryColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // form card stretches to full constrained width
-                          Align(
-                            alignment: Alignment.center,
-                            child: _buildFormCard(setDialogState),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ).then((_) {
-      // clear dialog context when it closes
-      _dialogContext = null;
-      // also reset form state so next open starts fresh
-      _formKey.currentState?.reset();
-      _name = '';
-      _phone = '';
-      _badge = '';
-      _profileImageData = null;
-      _profileImageName = null;
-    });
-  }
+  // Removed _showAddDialog method as it's not used in current implementation
 
   @override
   Widget build(BuildContext context) {
@@ -1523,17 +1270,6 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
                     final otp = otpController.text.trim();
                     if (otp.isEmpty) return;
                     setState(() => _isVerifying = true);
-                    // verify
-                    final apiKey = dotenv.env['SEMAPHORE_API_KEY'];
-                    if (apiKey == null || apiKey.isEmpty) {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('SEMAPHORE_API_KEY not configured'),
-                        backgroundColor: Colors.red,
-                      ));
-                      setState(() => _isVerifying = false);
-                      return;
-                    }
 
                     try {
                       // Debug: Log what OTP user entered vs what we expect
@@ -1596,43 +1332,6 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
     }
   }
 
-  Widget _buildDetailItem(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, size: 16, color: Colors.blue),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Helper to format accountCreated field which may be Timestamp, int (ms since epoch), or String
   String? _formatAccountCreatedForDisplay(dynamic raw) {
     if (raw == null) return null;
@@ -1689,11 +1388,7 @@ class _AddSecurityGuardUiState extends State<AddSecurityGuardUi> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _badgeController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _resendTimer?.cancel();
     super.dispose();
   }
 }
