@@ -5,6 +5,8 @@ import '../widgets/reusable_text_field.dart';
 import '../services/admin_profile_service.dart';
 import '../services/audit_wrapper.dart';
 import '../services/change_password_service.dart';
+import '../services/profile_otp_service.dart';
+import '../services/password_otp_service.dart';
 
 class SettingsPageUI {
   /// Builds the settings page header with icon and title
@@ -286,6 +288,59 @@ class _ProfileManagementWidgetState extends State<ProfileManagementWidget> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check if we have profile data to compare against
+    if (_profileData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile data not loaded. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check if OTP verification is required for the changes
+    final hasNewProfileImage =
+        _selectedImageData != null && _selectedImageName != null;
+    final requiresOtp = ProfileOtpService.requiresOtpVerification(
+      currentProfile: _profileData!,
+      newFirstName: _firstNameController.text.trim(),
+      newLastName: _lastNameController.text.trim(),
+      newPhone: _phoneController.text.trim(),
+      hasNewProfileImage: hasNewProfileImage,
+    );
+
+    // Show OTP verification if required
+    if (requiresOtp) {
+      // Show change summary to user
+      final changes = ProfileOtpService.getChangeSummary(
+        currentProfile: _profileData!,
+        newFirstName: _firstNameController.text.trim(),
+        newLastName: _lastNameController.text.trim(),
+        newPhone: _phoneController.text.trim(),
+        hasNewProfileImage: hasNewProfileImage,
+      );
+
+      // Show confirmation dialog with changes
+      final proceed = await _showChangeConfirmationDialog(changes);
+      if (!proceed) return;
+
+      // Show OTP verification dialog
+      final otpVerified = await ProfileOtpService.showProfileOtpVerification(
+        context: context,
+        currentProfile: _profileData!,
+        newFirstName: _firstNameController.text.trim(),
+        newLastName: _lastNameController.text.trim(),
+        newPhone: _phoneController.text.trim(),
+        hasNewProfileImage: hasNewProfileImage,
+      );
+
+      if (!otpVerified) {
+        // User cancelled or verification failed
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -350,6 +405,89 @@ class _ProfileManagementWidgetState extends State<ProfileManagementWidget> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  /// Show confirmation dialog listing the changes that will be made
+  Future<bool> _showChangeConfirmationDialog(List<String> changes) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.security, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Confirm Profile Changes'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'The following changes will be made to your profile:',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                ...changes.map((change) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              change,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'You will receive a verification code to confirm these changes.',
+                          style: TextStyle(fontSize: 12, color: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Widget _buildProfileImageSection() {
@@ -677,6 +815,22 @@ class _AccountSecurityWidgetState extends State<AccountSecurityWidget> {
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Show confirmation dialog for password change
+    final proceed = await PasswordOtpService.showPasswordChangeConfirmation(
+      context: context,
+    );
+    if (!proceed) return;
+
+    // Show OTP verification dialog
+    final otpVerified = await PasswordOtpService.showPasswordOtpVerification(
+      context: context,
+    );
+
+    if (!otpVerified) {
+      // User cancelled or verification failed
+      return;
+    }
 
     setState(() => _isChangingPassword = true);
 

@@ -1389,7 +1389,8 @@ class _SearchAccountPageState extends State<SearchAccountPage> {
                   _buildDetailRow(Icons.email, 'Email', user['email'] ?? 'N/A'),
                   _buildDetailRow(Icons.people_alt_outlined, 'User Type',
                       user['userType'] ?? 'N/A'),
-                  _buildDetailRow(Icons.phone, 'Phone', user['phone'] ?? 'N/A'),
+                  _buildDetailRow(
+                      Icons.phone, 'Phone', user['phoneNumber'] ?? 'N/A'),
                   const Divider(height: 24),
 
                   // Emergency contact section
