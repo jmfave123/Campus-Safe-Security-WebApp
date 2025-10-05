@@ -66,7 +66,6 @@ class SemaphoreClient implements OtpProvider {
     final cleanPhone = _cleanPhoneNumber(phone);
 
     try {
-      print('DEBUG: Starting OTP send for phone: $cleanPhone');
       final response = await _sendOtpRequest(
         phone: cleanPhone,
         message: message,
@@ -74,10 +73,8 @@ class SemaphoreClient implements OtpProvider {
         expireSeconds: expireSeconds,
       );
 
-      print('DEBUG: OTP request completed, processing response...');
       return _handleSendResponse(response);
     } catch (e) {
-      print('DEBUG: OTP Send Exception - type: ${e.runtimeType}, message: $e');
       if (e is ProviderException) rethrow;
       throw ProviderException('Failed to send OTP: $e');
     }
@@ -104,65 +101,30 @@ class SemaphoreClient implements OtpProvider {
     String? code,
     int expireSeconds = 300,
   }) async {
-    // Try multiple server configurations for better compatibility
-    final serverUrls = [
-      '/api/send-otp', // Vercel serverless function (bypasses HTTP restrictions)
-      'http://quest4inno.mooo.com:3000/send-otp', // Direct HTTP (fallback)
-    ];
+    // Use Node.js server on quest4inno
+    final uri = Uri.parse('http://quest4inno.mooo.com:3000/send-otp');
 
-    Exception? lastException;
+    // Send only phone number - server handles OTP generation and messaging
+    final requestBody = jsonEncode({
+      'phone': phone,
+    });
 
-    for (final url in serverUrls) {
-      try {
-        print('DEBUG: Trying OTP server URL: $url');
+    final response = await _httpClient
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: requestBody,
+        )
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw ProviderException('Request timeout'),
+        );
 
-        // Handle relative URLs for Vercel functions
-        final uri = url.startsWith('/')
-            ? Uri.parse(
-                'https://${Uri.base.host}$url') // Use current domain for Vercel function
-            : Uri.parse(url);
-
-        // Send only phone number - server handles OTP generation and messaging
-        final requestBody = jsonEncode({
-          'phone': phone,
-        });
-
-        final response = await _httpClient
-            .post(
-              uri,
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'User-Agent': 'CampusSafeApp/1.0',
-              },
-              body: requestBody,
-            )
-            .timeout(
-              const Duration(seconds: 15),
-              onTimeout: () =>
-                  throw ProviderException('Request timeout for $url'),
-            );
-
-        print('DEBUG: OTP server response for $url: ${response.statusCode}');
-
-        // If we get a successful response, return it
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          print('DEBUG: Successfully connected to OTP server: $url');
-          return response;
-        }
-
-        // If we get a different status code, try next URL
-        print(
-            'DEBUG: Server $url returned status ${response.statusCode}, trying next...');
-      } catch (e) {
-        print('DEBUG: Failed to connect to $url: $e');
-        lastException = e is Exception ? e : Exception(e.toString());
-        continue; // Try next URL
-      }
-    }
-
-    // If all URLs failed, throw the last exception
-    throw lastException ?? ProviderException('All OTP server URLs failed');
+    _debugLog('sendOtp (via Node server)', response);
+    return response;
   }
 
   /// Handle the response from Node.js server
