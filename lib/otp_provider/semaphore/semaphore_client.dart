@@ -106,9 +106,8 @@ class SemaphoreClient implements OtpProvider {
   }) async {
     // Try multiple server configurations for better compatibility
     final serverUrls = [
-      'http://quest4inno.mooo.com:3000/send-otp', // Primary - working perfectly
-      'https://quest4inno.mooo.com:3000/send-otp', // HTTPS version
-      // Removed port 80 URLs due to nginx redirect issues
+      '/api/send-otp', // Vercel serverless function (bypasses HTTP restrictions)
+      'http://quest4inno.mooo.com:3000/send-otp', // Direct HTTP (fallback)
     ];
 
     Exception? lastException;
@@ -116,7 +115,12 @@ class SemaphoreClient implements OtpProvider {
     for (final url in serverUrls) {
       try {
         print('DEBUG: Trying OTP server URL: $url');
-        final uri = Uri.parse(url);
+
+        // Handle relative URLs for Vercel functions
+        final uri = url.startsWith('/')
+            ? Uri.parse(
+                'https://${Uri.base.host}$url') // Use current domain for Vercel function
+            : Uri.parse(url);
 
         // Send only phone number - server handles OTP generation and messaging
         final requestBody = jsonEncode({
