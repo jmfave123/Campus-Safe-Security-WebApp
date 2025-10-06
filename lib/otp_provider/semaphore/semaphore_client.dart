@@ -101,30 +101,53 @@ class SemaphoreClient implements OtpProvider {
     String? code,
     int expireSeconds = 300,
   }) async {
-    // Use Node.js server on quest4inno
-    final uri = Uri.parse('http://quest4inno.mooo.com:3000/send-otp');
+    // List of server URLs to try (HTTPS first, then HTTP backup)
+    // In lib/otp_provider/semaphore/semaphore_client.dart
+    final serverUrls = [
+      'https://quest4inno.mooo.com:8443/send-otp', // HTTPS on port 8443 (main)
+      'http://quest4inno.mooo.com:3005/send-otp', // HTTP backup on port 3005
+    ];
 
     // Send only phone number - server handles OTP generation and messaging
     final requestBody = jsonEncode({
       'phone': phone,
     });
 
-    final response = await _httpClient
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: requestBody,
-        )
-        .timeout(
-          const Duration(seconds: 30),
-          onTimeout: () => throw ProviderException('Request timeout'),
-        );
+    // Try each server URL until one works
+    for (int i = 0; i < serverUrls.length; i++) {
+      final serverUrl = serverUrls[i];
 
-    _debugLog('sendOtp (via Node server)', response);
-    return response;
+      try {
+        final uri = Uri.parse(serverUrl);
+
+        final response = await _httpClient
+            .post(
+              uri,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: requestBody,
+            )
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => throw ProviderException('Request timeout'),
+            );
+
+        _debugLog('sendOtp (via Node server)', response);
+        return response;
+      } catch (e) {
+        // If this is the last URL, rethrow the error
+        if (i == serverUrls.length - 1) {
+          rethrow;
+        }
+        // Otherwise, continue to next URL
+        continue;
+      }
+    }
+
+    // This should never be reached, but just in case
+    throw ProviderException('All server URLs failed');
   }
 
   /// Handle the response from Node.js server
