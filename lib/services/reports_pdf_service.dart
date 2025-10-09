@@ -144,7 +144,7 @@ class ReportsPDFService {
                               'Resolved Reports: ${reportsData.where((report) => report['status'] == 'resolved').length}'),
                           pw.SizedBox(height: 5),
                           pw.Text(
-                              'False Information: ${reportsData.where((report) => report['status'] == 'false information').length}'),
+                              'False Report: ${reportsData.where((report) => report['status'] == 'false report').length}'),
                         ],
                       ),
                     ),

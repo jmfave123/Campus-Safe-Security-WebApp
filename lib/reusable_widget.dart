@@ -753,7 +753,7 @@ Widget buildStatusChip(String status) {
       chipColor = kPrimaryColor;
       statusIcon = Icons.sync;
       break;
-    case 'false information':
+    case 'false report':
       chipColor = Colors.red.shade700;
       statusIcon = Icons.report_problem;
       break;

@@ -962,35 +962,40 @@ class _AlcoholDetectionPageState extends State<AlcoholDetectionPage> {
         currentStatus == AlcoholDetectionService.statusResolved;
 
     return Tooltip(
-      message: isResolved ? 'Mark as Active' : 'Mark as Resolved',
+      message: isResolved ? 'Resolved - Cannot be changed' : 'Mark as Resolved',
       child: Switch(
         value: isResolved,
         activeColor: Colors.green,
         activeTrackColor: Colors.green.shade100,
         inactiveThumbColor: Colors.grey,
         inactiveTrackColor: Colors.grey.shade300,
-        onChanged: (bool value) => _updateDetectionStatus(docId, value),
+        // Disable the switch if already resolved - cannot toggle back
+        onChanged: isResolved
+            ? null // Disabled when resolved
+            : (bool value) => _updateDetectionStatus(docId, value),
       ),
     );
   }
 
   Future<void> _updateDetectionStatus(String docId, bool markAsResolved) async {
+    // Only allow marking as resolved - cannot change back to active
+    if (!markAsResolved) {
+      return; // This should not happen due to UI constraints, but safety check
+    }
+
     final success = await AlcoholDetectionService.updateDetectionStatus(
         docId, markAsResolved);
 
     if (mounted) {
       if (success) {
-        final message = markAsResolved
-            ? 'Detection marked as resolved successfully'
-            : 'Detection marked as active successfully';
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 22),
                 const SizedBox(width: 12),
-                Text(message),
+                const Text(
+                    'Detection marked as resolved successfully. Notification sent to student.'),
               ],
             ),
             backgroundColor: Colors.green.shade600,

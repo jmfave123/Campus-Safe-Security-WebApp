@@ -142,7 +142,7 @@ class UserReportsService {
       if (newStatus == 'resolved' && remarks != null) {
         updateData['resolveRemarks'] = remarks;
         updateData['resolvedAt'] = FieldValue.serverTimestamp();
-      } else if (newStatus == 'false information' && remarks != null) {
+      } else if (newStatus == 'false report' && remarks != null) {
         updateData['falseInfoRemarks'] = remarks;
         updateData['falseInfoMarkedAt'] = FieldValue.serverTimestamp();
       }
@@ -229,7 +229,7 @@ class UserReportsService {
         return 'Your report about "$reportTitle" is now being processed by our security team. We\'ll keep you updated on its progress.';
       case 'resolved':
         return 'Good news! Your report about "$reportTitle" has been resolved. You can check the details in the app.';
-      case 'false information':
+      case 'false report':
         return 'Your report about "$reportTitle" has been marked as containing incorrect information. Please check the app for more details.';
       default:
         return 'Your report about "$reportTitle" has been updated to "$status". Please check the app for more information.';
@@ -305,17 +305,27 @@ class UserReportsService {
           return option;
         }).toList();
 
-      case 'false information':
-        // Can't change from false information to any other status
+      case 'false report':
+        // Can't change from false report to any other status
         return allOptions.map((option) {
-          if (option['value'] != 'false information') {
+          if (option['value'] != 'false report') {
+            return {...option, 'disabled': true};
+          }
+          return option;
+        }).toList();
+
+      case 'pending':
+        // Pending can only go to in progress (must go through in progress before resolved/false)
+        return allOptions.map((option) {
+          if (option['value'] == 'resolved' ||
+              option['value'] == 'false report') {
             return {...option, 'disabled': true};
           }
           return option;
         }).toList();
 
       default:
-        // No restrictions for pending status
+        // No restrictions for other statuses (fallback)
         return allOptions;
     }
   }

@@ -1174,7 +1174,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     ],
 
-                    // Add false information remarks if they exist
+                    // Add false report remarks if they exist
                     if (hasFalseInfoRemarks) ...[
                       const SizedBox(height: 8),
                       Container(
@@ -1635,17 +1635,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                                               text:
                                                                   resolveRemarks),
                                                       maxLines: 3,
+                                                      readOnly: true,
                                                       decoration:
                                                           const InputDecoration(
                                                         hintText:
-                                                            'Enter details about how this report was resolved...',
+                                                            'Resolution remarks (read-only)',
                                                         contentPadding:
                                                             EdgeInsets.all(12),
                                                         border:
                                                             InputBorder.none,
+                                                        suffixIcon: Icon(
+                                                            Icons.lock,
+                                                            size: 16,
+                                                            color: Colors.grey),
                                                       ),
-                                                      style: const TextStyle(
-                                                          fontSize: 14),
+                                                      style: TextStyle(
+                                                          fontSize: 14,
+                                                          color: Colors
+                                                              .grey.shade600),
                                                     ),
                                                   ),
                                                 ],
@@ -1905,16 +1912,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                                       TextEditingController(
                                                           text: resolveRemarks),
                                                   maxLines: 3,
+                                                  readOnly: true,
                                                   decoration:
                                                       const InputDecoration(
                                                     hintText:
-                                                        'Enter details about how this report was resolved...',
+                                                        'Resolution remarks (read-only)',
                                                     contentPadding:
                                                         EdgeInsets.all(12),
                                                     border: InputBorder.none,
+                                                    suffixIcon: Icon(Icons.lock,
+                                                        size: 16,
+                                                        color: Colors.grey),
                                                   ),
-                                                  style: const TextStyle(
-                                                      fontSize: 14),
+                                                  style: TextStyle(
+                                                      fontSize: 14,
+                                                      color:
+                                                          Colors.grey.shade600),
                                                 ),
                                               ),
                                             ],
@@ -2129,15 +2142,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _updateReportStatus(String reportId, Map<String, dynamic> report) {
+    // Get current status to implement restrictions
+    final currentStatus = report['status'] ?? 'pending';
+
+    // Check if status is already final (resolved or false report)
+    if (currentStatus.toLowerCase() == 'resolved' ||
+        currentStatus.toLowerCase() == 'false report') {
+      _showStatusAlreadyUpdatedDialog();
+      return;
+    }
+
     String selectedStatus = report['status'] ?? 'pending';
     final TextEditingController remarksController = TextEditingController();
     remarksController.text = report['resolveRemarks'] ?? '';
     final TextEditingController falseInfoRemarksController =
         TextEditingController();
     falseInfoRemarksController.text = report['falseInfoRemarks  '] ?? '';
-
-    // Get current status to implement restrictions
-    final currentStatus = report['status'] ?? 'pending';
 
     showDialog(
       context: context,
@@ -2266,6 +2286,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           color: Colors.green.shade700,
                                         ),
                                       ),
+                                      if (currentStatus == 'resolved') ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade200,
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'READ-ONLY',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -2279,13 +2319,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     child: TextField(
                                       controller: remarksController,
                                       maxLines: 3,
-                                      decoration: const InputDecoration(
-                                        hintText:
-                                            'Enter details about how this report was resolved...',
-                                        contentPadding: EdgeInsets.all(12),
+                                      readOnly: currentStatus == 'resolved',
+                                      decoration: InputDecoration(
+                                        hintText: currentStatus == 'resolved'
+                                            ? 'Resolution remarks (read-only)'
+                                            : 'Enter details about how this report was resolved...',
+                                        contentPadding:
+                                            const EdgeInsets.all(12),
                                         border: InputBorder.none,
+                                        suffixIcon: currentStatus == 'resolved'
+                                            ? const Icon(Icons.lock,
+                                                size: 16, color: Colors.grey)
+                                            : null,
                                       ),
-                                      style: const TextStyle(fontSize: 14),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: currentStatus == 'resolved'
+                                            ? Colors.grey.shade600
+                                            : Colors.black,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -2316,6 +2368,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           color: Colors.red.shade700,
                                         ),
                                       ),
+                                      if (currentStatus == 'false report') ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade200,
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'READ-ONLY',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -2329,13 +2401,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     child: TextField(
                                       controller: falseInfoRemarksController,
                                       maxLines: 3,
-                                      decoration: const InputDecoration(
-                                        hintText:
-                                            'Explain why this report is considered false report...',
-                                        contentPadding: EdgeInsets.all(12),
+                                      readOnly: currentStatus == 'false report',
+                                      decoration: InputDecoration(
+                                        hintText: currentStatus ==
+                                                'false report'
+                                            ? 'False report details (read-only)'
+                                            : 'Explain why this report is considered false report...',
+                                        contentPadding:
+                                            const EdgeInsets.all(12),
                                         border: InputBorder.none,
+                                        suffixIcon:
+                                            currentStatus == 'false report'
+                                                ? const Icon(Icons.lock,
+                                                    size: 16,
+                                                    color: Colors.grey)
+                                                : null,
                                       ),
-                                      style: const TextStyle(fontSize: 14),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: currentStatus == 'false report'
+                                            ? Colors.grey.shade600
+                                            : Colors.black,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -2360,8 +2447,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       const SizedBox(width: 16),
                       ElevatedButton(
                         onPressed: () {
-                          // Validation for both resolved and false information remarks
+                          // Validation for both resolved and false report remarks
+                          // Only validate if the field is editable (not read-only)
                           if (selectedStatus == 'resolved' &&
+                              currentStatus != 'resolved' &&
                               remarksController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(const SnackBar(
@@ -2372,6 +2461,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           }
 
                           if (selectedStatus == 'false report' &&
+                              currentStatus != 'false report' &&
                               falseInfoRemarksController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(const SnackBar(
@@ -3039,5 +3129,90 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       );
     }
+  }
+
+  // Show dialog when trying to update a report that's already in final status
+  void _showStatusAlreadyUpdatedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 48,
+                    color: Colors.amber.shade700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  'Report Status Already Updated',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // Message
+                Text(
+                  'This report has already been finalized and cannot be updated further. The status is locked to maintain data integrity.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // OK Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

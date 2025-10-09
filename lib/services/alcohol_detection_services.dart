@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'notify_services.dart';
 
 class AlcoholDetectionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -51,17 +52,126 @@ class AlcoholDetectionService {
     }
   }
 
-  /// Update detection status
-  static Future<bool> updateDetectionStatus(String docId, bool isActive) async {
+  /// Update detection status - only allows marking as resolved (one-way)
+  static Future<bool> updateDetectionStatus(
+      String docId, bool markAsResolved) async {
     try {
+      // Only allow marking as resolved - cannot change back to active
+      if (!markAsResolved) {
+        print(
+            'Warning: Attempted to change resolved detection back to active - not allowed');
+        return false;
+      }
+
+      // Get detection data before updating
+      final detectionDoc =
+          await _firestore.collection(_collection).doc(docId).get();
+      if (!detectionDoc.exists) {
+        print('Detection document not found: $docId');
+        return false;
+      }
+
+      final detectionData = detectionDoc.data() as Map<String, dynamic>;
+      final studentName = detectionData['studentName'] as String?;
+      final originalTimestamp = detectionData['originalTimestamp'];
+
+      // Update the status
       await _firestore
           .collection(_collection)
           .doc(docId)
-          .update({'status': isActive ? statusResolved : statusActive});
+          .update({'status': statusResolved});
+
+      // Send notification if student name exists
+      if (studentName != null && studentName.isNotEmpty) {
+        final userId = await _getUserIdByStudentName(studentName);
+        if (userId != null) {
+          // Format the detection date
+          final formattedDate = _formatDetectionDate(originalTimestamp);
+
+          await _sendDetectionNotification(
+            userId: userId,
+            studentName: studentName,
+            detectionDate: formattedDate,
+          );
+        } else {
+          print('User not found for student name: $studentName');
+        }
+      }
+
       return true;
     } catch (e) {
       print('Error updating detection status: $e');
       return false;
+    }
+  }
+
+  /// Get userId by student name from users collection
+  static Future<String?> _getUserIdByStudentName(String studentName) async {
+    try {
+      final userQuery = await _firestore
+          .collection('users')
+          .where('fullName', isEqualTo: studentName.trim())
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        return userQuery.docs.first.id; // userId is the document ID
+      }
+      return null;
+    } catch (e) {
+      print('Error looking up user by name: $e');
+      return null;
+    }
+  }
+
+  /// Format originalTimestamp to MM/dd/yyyy HH:mm string
+  static String? _formatDetectionDate(dynamic originalTimestamp) {
+    try {
+      if (originalTimestamp == null) return null;
+
+      DateTime? dateTime;
+      if (originalTimestamp is String) {
+        dateTime = DateTime.parse(originalTimestamp);
+      } else if (originalTimestamp is Timestamp) {
+        dateTime = originalTimestamp.toDate();
+      }
+
+      if (dateTime != null) {
+        return DateFormat('MM/dd/yyyy HH:mm').format(dateTime);
+      }
+      return null;
+    } catch (e) {
+      print('Error formatting detection date: $e');
+      return null;
+    }
+  }
+
+  /// Send push notification to student about detection status update
+  static Future<void> _sendDetectionNotification({
+    required String userId,
+    required String studentName,
+    String? detectionDate,
+  }) async {
+    try {
+      // Create message with date and time if available
+      String message;
+      if (detectionDate != null && detectionDate.isNotEmpty) {
+        message =
+            "Your alcohol detection case on $detectionDate has been resolved by campus security.";
+      } else {
+        message =
+            "Your alcohol detection case has been resolved by campus security.";
+      }
+
+      await NotifServices.sendNotificationToSpecificUser(
+        userId: userId,
+        heading: "Alcohol Detection Update",
+        content: message,
+      );
+      print('Push notification sent to $studentName (ID: $userId)');
+    } catch (e) {
+      print('Error sending push notification: $e');
+      // Don't rethrow - notification failure shouldn't prevent status update
     }
   }
 

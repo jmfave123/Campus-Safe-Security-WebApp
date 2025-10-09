@@ -151,8 +151,7 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
     final formattedDate = timestamp != null
         ? DateFormat('MMM d, y • HH:mm').format(timestamp.toDate())
         : 'Time not available';
-    final status = widget.alert['status'] ?? 'active';
-    final isActive = status == 'active';
+    // Status removed - announcements are always active
     final message = widget.alert['message'] ?? 'No message';
     final imageUrl = widget.alert['imageUrl'];
     final imageName = widget.alert['imageName'];
@@ -194,17 +193,14 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                     height: 48,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: isActive
-                            ? [Colors.red.shade400, Colors.red.shade600]
-                            : [Colors.grey.shade400, Colors.grey.shade600],
+                        colors: [Colors.red.shade400, Colors.red.shade600],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: (isActive ? Colors.red : Colors.grey)
-                              .withOpacity(0.2),
+                          color: Colors.red.withOpacity(0.2),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -232,31 +228,6 @@ class _ViewAnnouncementDialogState extends State<ViewAnnouncementDialog> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? Colors.green.shade50
-                                    : Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isActive
-                                      ? Colors.green.shade200
-                                      : Colors.grey.shade300,
-                                ),
-                              ),
-                              child: Text(
-                                isActive ? 'Active' : 'Inactive',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: isActive
-                                      ? Colors.green.shade700
-                                      : Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 4),

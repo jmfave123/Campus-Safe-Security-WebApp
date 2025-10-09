@@ -360,97 +360,108 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
         return Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.blue.shade50, Colors.white],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 380,
+              minWidth: 280,
             ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Announcement Sent Successfully',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.blue.shade50, Colors.white],
                 ),
-                const SizedBox(height: 20),
-                receiptInfoRow(
-                  Icons.message,
-                  'Message',
-                  alertData['message'],
-                ),
-                const SizedBox(height: 12),
-                receiptInfoRow(
-                  Icons.people,
-                  'Recipients',
-                  alertData['targetDisplay'],
-                ),
-                const SizedBox(height: 12),
-                receiptInfoRow(
-                  Icons.access_time,
-                  'Time',
-                  DateFormat('MMM d, y HH:mm').format(DateTime.now()),
-                ),
-
-                // Show image info if image was included
-                if (alertData['imageName'] != null) ...[
-                  const SizedBox(height: 12),
-                  receiptInfoRow(
-                    Icons.image,
-                    'Image',
-                    alertData['imageName'],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 4),
                   ),
                 ],
-
-                const SizedBox(height: 20),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                    ),
-                    child: const Text('OK'),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Announcement Sent Successfully',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  receiptInfoRow(
+                    Icons.message,
+                    'Message',
+                    alertData['message'],
+                  ),
+                  const SizedBox(height: 12),
+                  receiptInfoRow(
+                    Icons.people,
+                    'Recipients',
+                    alertData['targetDisplay'],
+                  ),
+                  const SizedBox(height: 12),
+                  receiptInfoRow(
+                    Icons.access_time,
+                    'Time',
+                    DateFormat('MMM d, y HH:mm').format(DateTime.now()),
+                  ),
+
+                  // Show image info if image was included
+                  if (alertData['imageName'] != null) ...[
+                    const SizedBox(height: 12),
+                    receiptInfoRow(
+                      Icons.image,
+                      'Image',
+                      alertData['imageName'],
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                      child: const Text('OK'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -1517,9 +1528,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
       orElse: () => AlertTarget.all,
     );
 
-    String currentStatus = alert['status'] ?? 'active';
-    bool isActive = currentStatus == 'active';
-    bool resendNotification = false; // New state variable for resend option
+    // Status and resend notification removed - announcements are always active and auto-send notifications
 
     final result = await showDialog<bool>(
       context: context,
@@ -1569,7 +1578,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           ),
                           const SizedBox(width: 12),
                           const Text(
-                            'Edit Alert',
+                            'Edit Announcement',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -1874,104 +1883,7 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                           ],
                         );
                       }),
-                      Row(
-                        children: [
-                          Text(
-                            'Status:',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Switch(
-                            value: isActive,
-                            onChanged: isActive
-                                ? (value) {
-                                    setState(() {
-                                      isActive = value;
-                                    });
-                                  }
-                                : null, // Null makes the switch disabled if already inactive
-                            activeColor: Colors.green,
-                            activeTrackColor: Colors.green.withOpacity(0.5),
-                            inactiveThumbColor: Colors.grey,
-                            inactiveTrackColor: Colors.grey.withOpacity(0.5),
-                          ),
-                          Text(
-                            isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: isActive
-                                  ? Colors.green.shade700
-                                  : Colors.grey.shade700,
-                            ),
-                          ),
-                          if (!isActive) ...[
-                            const SizedBox(width: 8),
-                            Tooltip(
-                              message: 'Inactive alerts cannot be reactivated',
-                              child: Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
                       const SizedBox(height: 16),
-                      // Add resend notification checkbox
-                      if (isActive) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.blue.withOpacity(0.2),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: resendNotification,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    resendNotification = value ?? false;
-                                  });
-                                },
-                                activeColor: Colors.blue,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Resend notification to users',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Send push notification with updated announcement',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                      ],
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -2011,8 +1923,9 @@ class _ThrowAlertsPageState extends State<ThrowAlertsPage> {
                                   documentId: docId,
                                   newMessage: editController.text.trim(),
                                   newTarget: selectedTarget,
-                                  newStatus: isActive ? 'active' : 'inactive',
-                                  resendNotification: resendNotification,
+                                  newStatus: 'active', // Always active
+                                  resendNotification:
+                                      true, // Always send notification on update
                                 );
 
                                 if (result.success) {
